@@ -1,1 +1,2 @@
--- TODO(M2): Add deterministic local users and fixture records after the schema exists.
+-- M2 intentionally has no application seed rows. The prepared fixture enters
+-- through the same authenticated HTTP path used by the browser.

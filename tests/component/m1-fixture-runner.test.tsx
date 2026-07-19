@@ -20,7 +20,11 @@ describe("M1 fixture runner", () => {
   it("loads and checks the prepared article", async () => {
     const user = userEvent.setup();
     render(
-      <M1FixtureRunner demoArticle={demoArticle} demoExpected={demoExpected} />,
+      <M1FixtureRunner
+        demoArticle={demoArticle}
+        demoExpected={demoExpected}
+        backend="fake"
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: "Load demo article" }));

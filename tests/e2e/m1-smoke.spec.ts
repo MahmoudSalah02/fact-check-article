@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("prepared article travels through the M1 fake vertical slice", async ({
+test("prepared article travels through the configured vertical slice", async ({
   page,
 }) => {
   await page.goto("/");
@@ -13,5 +13,7 @@ test("prepared article travels through the M1 fake vertical slice", async ({
   await expect(
     page.getByRole("heading", { name: "Typed fixture result" }),
   ).toBeVisible();
-  await expect(page.getByText(/energy-secretary/)).toBeVisible();
+  await expect(
+    page.getByText(/Chris Wright is the U.S. secretary of energy/),
+  ).toBeVisible();
 });

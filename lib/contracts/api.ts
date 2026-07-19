@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { RunStatusSchema, RunViewSchema } from "@/lib/contracts/run";
+import {
+  EditDecisionSchema,
+  RunStatusSchema,
+  RunViewSchema,
+} from "@/lib/contracts/run";
 
 export const CreateRunInputSchema = z
   .object({
@@ -19,9 +23,17 @@ export const CreateRunResultSchema = z
 
 export const GetRunResultSchema = RunViewSchema;
 
+export const SetDecisionInputSchema = z
+  .object({ decision: z.enum(["accepted", "rejected", "restored"]) })
+  .strict();
+
+export const SetDecisionResultSchema = EditDecisionSchema;
+
 export type CreateRunInput = z.infer<typeof CreateRunInputSchema>;
 export type CreateRunResult = z.infer<typeof CreateRunResultSchema>;
 export type GetRunResult = z.infer<typeof GetRunResultSchema>;
+export type SetDecisionInput = z.infer<typeof SetDecisionInputSchema>;
+export type SetDecisionResult = z.infer<typeof SetDecisionResultSchema>;
 
 export interface RunClient {
   createRun(input: CreateRunInput): Promise<CreateRunResult>;

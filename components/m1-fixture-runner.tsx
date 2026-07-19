@@ -1,27 +1,73 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import type { RunView } from "@/lib/contracts";
 import { createFixtureRunClient } from "@/lib/client/create-fixture-run-client";
+import { HttpRunClient } from "@/lib/client/http-run-client";
+import type { RunClient, RunView } from "@/lib/contracts";
+import { getAnonymousAccessToken } from "@/lib/supabase/browser";
 
 type Props = {
   demoArticle: string;
   demoExpected: unknown;
+  backend: "fake" | "supabase";
 };
 
-export function M1FixtureRunner({ demoArticle, demoExpected }: Props) {
+export function M1FixtureRunner({ demoArticle, demoExpected, backend }: Props) {
   const [article, setArticle] = useState("");
   const [runView, setRunView] = useState<RunView | null>(null);
   const [status, setStatus] = useState<
     "empty" | "ready" | "checking" | "completed" | "error"
   >("empty");
   const [error, setError] = useState<string | null>(null);
+  const [durableClient, setDurableClient] = useState<RunClient | null>(null);
 
-  const runClient = useMemo(
-    () => createFixtureRunClient(demoArticle, demoExpected),
-    [demoArticle, demoExpected],
+  const fixtureClient = useMemo(
+    () =>
+      backend === "fake"
+        ? createFixtureRunClient(demoArticle, demoExpected)
+        : null,
+    [backend, demoArticle, demoExpected],
   );
+  const runClient = fixtureClient ?? durableClient;
+
+  useEffect(() => {
+    if (backend !== "supabase") return;
+    let cancelled = false;
+
+    async function initialize() {
+      try {
+        await getAnonymousAccessToken();
+        const client = new HttpRunClient(getAnonymousAccessToken);
+        if (cancelled) return;
+        setDurableClient(client);
+
+        const runId = new URL(window.location.href).searchParams.get("run");
+        if (!runId) return;
+        setStatus("checking");
+        const restored = await client.getRun(runId);
+        if (!cancelled) {
+          setArticle(restored.document.originalText);
+          setRunView(restored);
+          setStatus("completed");
+        }
+      } catch (caught) {
+        if (!cancelled) {
+          setError(
+            caught instanceof Error
+              ? caught.message
+              : "Unable to start an anonymous session",
+          );
+          setStatus("error");
+        }
+      }
+    }
+
+    void initialize();
+    return () => {
+      cancelled = true;
+    };
+  }, [backend]);
 
   function loadDemo() {
     setArticle(demoArticle);
@@ -31,13 +77,19 @@ export function M1FixtureRunner({ demoArticle, demoExpected }: Props) {
   }
 
   async function checkArticle() {
+    if (!runClient) return;
     setStatus("checking");
     setError(null);
     try {
       const created = await runClient.createRun({
         text: article,
-        title: "M1 demo",
+        title: "PulseCheck demo",
       });
+      if (backend === "supabase") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("run", created.runId);
+        window.history.replaceState(null, "", url);
+      }
       setRunView(await runClient.getRun(created.runId));
       setStatus("completed");
     } catch (caught) {
@@ -54,14 +106,17 @@ export function M1FixtureRunner({ demoArticle, demoExpected }: Props) {
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-8 px-6 py-12 sm:px-10">
       <header className="space-y-3">
         <p className="text-sm font-medium text-zinc-500">
-          Concept prototype · M1 fixture mode
+          {backend === "supabase"
+            ? "M2 · Durable Supabase fixture"
+            : "Concept prototype · Local fixture mode"}
         </p>
         <h1 className="text-4xl font-semibold tracking-tight text-zinc-950">
           PulseCheck
         </h1>
         <p className="max-w-2xl text-lg leading-8 text-zinc-600">
-          The typed fake vertical slice is live. F1 will replace this temporary
-          interface with the article-first product experience.
+          {backend === "supabase"
+            ? "This prepared analysis is authenticated, persisted, and reloadable."
+            : "The deterministic local fixture runs without provider credentials."}
         </p>
       </header>
 
@@ -93,10 +148,16 @@ export function M1FixtureRunner({ demoArticle, demoExpected }: Props) {
           <button
             type="button"
             onClick={checkArticle}
-            disabled={article.length === 0 || status === "checking"}
+            disabled={
+              article.length === 0 || status === "checking" || !runClient
+            }
             className="rounded-full bg-zinc-900 px-5 py-2.5 font-medium text-white hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-zinc-500 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
-            {status === "checking" ? "Checking…" : "Check article"}
+            {status === "checking"
+              ? "Checking…"
+              : runClient
+                ? "Check article"
+                : "Starting session…"}
           </button>
           <span aria-live="polite" className="text-sm text-zinc-500">
             {status === "completed"
