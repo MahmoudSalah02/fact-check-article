@@ -1,0 +1,29 @@
+import { z } from "zod";
+
+import { RunStatusSchema, RunViewSchema } from "@/lib/contracts/run";
+
+export const CreateRunInputSchema = z
+  .object({
+    text: z.string().min(1, "Paste an article before checking").max(20_000),
+    title: z.string().trim().min(1).max(200).nullable(),
+  })
+  .strict();
+
+export const CreateRunResultSchema = z
+  .object({
+    runId: z.uuid(),
+    status: RunStatusSchema,
+    createdAt: z.iso.datetime(),
+  })
+  .strict();
+
+export const GetRunResultSchema = RunViewSchema;
+
+export type CreateRunInput = z.infer<typeof CreateRunInputSchema>;
+export type CreateRunResult = z.infer<typeof CreateRunResultSchema>;
+export type GetRunResult = z.infer<typeof GetRunResultSchema>;
+
+export interface RunClient {
+  createRun(input: CreateRunInput): Promise<CreateRunResult>;
+  getRun(runId: string): Promise<GetRunResult>;
+}

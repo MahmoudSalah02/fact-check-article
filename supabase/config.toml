@@ -1,0 +1,3 @@
+# TODO(M2): Initialize and validate the local Supabase stack before adding migrations.
+# Acceptance: `pnpm supabase db reset --local` recreates the complete schema.
+project_id = "pulsecheck"

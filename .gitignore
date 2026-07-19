@@ -1,12 +1,12 @@
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Next.js and build output
 .next/
 out/
 dist/
 *.tsbuildinfo
-next-env.d.ts
 
 # Test output
 coverage/

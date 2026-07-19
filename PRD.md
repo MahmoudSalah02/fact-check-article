@@ -537,7 +537,7 @@ Keep tests organized by behavior rather than mirroring every source file. Small 
 
 This is the only setup gate before coding. Do not block M1 on live Supabase or OpenAI credentials because its default path uses fakes.
 
-- Confirm the Git repository root and default branch, protect `main`, require the CI check, and enable pull-request previews in Vercel.
+- Confirm the Git repository root and default branch, protect `main`, require the CI check, and enable pull-request previews in Vercel. For a private repository, verify both separate Vercel connections: the account's GitHub login connection must identify commit authors, and the Vercel GitHub App must be installed with access to this repository. Keep standard Preview protection enabled; automated browser tests use a securely stored Vercel automation-bypass secret.
 - Install Node 24 LTS and enable Corepack/pnpm. M1 selects Node `24.x`, pins the exact pnpm version, and commits the generated lockfile; developers do not rely on globally drifting package versions.
 - Confirm both developers can run GitHub, Vercel, and the repository locally. A Docker-compatible runtime and the Supabase CLI are required before M2, not M1.
 - Create one non-production Supabase project before M2 and a separate production project before M4. Never point previews at production data.
