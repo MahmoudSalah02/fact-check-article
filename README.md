@@ -6,7 +6,7 @@ PulseCheck is an evidence-backed fact proofreader. It preserves an article's ori
 
 ## Current status
 
-M1 is a complete, deterministic vertical slice: a user can load the prepared article, run the fixture-backed analysis, and inspect nine schema-validated findings. It uses no network request, database, provider account, or paid model.
+M1's deterministic fixture-backed vertical slice is complete. F1 adds the calm, article-first PulseCheck shell and input states on top of that same fake `RunClient` boundary: a user can load the prepared article, run the fixture-backed analysis, and receive nine schema-validated findings without a network request, database, provider account, or paid model.
 
 See [PRD.md](PRD.md) for the product, architecture, and two-developer delivery roadmap.
 
@@ -60,7 +60,7 @@ Vercel Previews use standard deployment protection. Automated Preview tests may 
 - `lib/analysis/` owns the provider interface and deterministic fixture provider.
 - `lib/server/` owns repositories, adapters, configuration, and future server integrations.
 - `lib/domain/` remains free of Next.js, Supabase, Vercel, and OpenAI SDK imports.
-- `components/` contains the temporary M1 view and ticket-owned future UI seams.
+- `components/` contains the F1 product shell and article input, plus ticket-owned future UI seams.
 - `app/api/` compiles but deliberately returns HTTP `501` until its owning ticket.
 
 Search `TODO(M2)` through `TODO(F5)` to find each explicitly owned implementation seam. Do not implement across another developer's boundary without agreeing on the shared contract first.
