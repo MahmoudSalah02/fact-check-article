@@ -48,7 +48,9 @@ describe("F1 PulseCheck article input", () => {
       "page",
     );
     expect(screen.getByText("ChatGPT")).toBeVisible();
-    expect(screen.getByText("Codex")).toBeVisible();
+    expect(screen.getByText("New chat")).toBeVisible();
+    expect(screen.getByText("Library")).toBeVisible();
+    expect(screen.getByText("Recents")).toBeVisible();
     expect(
       screen.getByRole("heading", { level: 1, name: "PulseCheck" }),
     ).toBeVisible();

@@ -175,21 +175,18 @@ export function PulseCheckApp({
 
   return (
     <ProductShell>
-      <main className="mx-auto w-full max-w-5xl px-5 py-12 sm:px-8 sm:py-16">
-        <div className="max-w-3xl">
-          <h1 className="text-4xl font-semibold tracking-[-0.04em] text-zinc-950 sm:text-5xl">
+      <main className="mx-auto w-full max-w-3xl px-5 py-10 sm:py-14">
+        <div className="text-center">
+          <h1 className="text-3xl font-semibold tracking-[-0.02em] text-[#ececec] sm:text-4xl">
             PulseCheck
           </h1>
-          <p className="mt-4 text-xl font-medium tracking-tight text-zinc-800 sm:text-2xl">
-            Check what still holds up.
-          </p>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-zinc-600 sm:text-lg">
-            PulseCheck researches factual claims in your article and returns the
-            smallest evidence-backed changes for your review.
+          <p className="mt-3 text-base leading-7 text-[#b4b4b4] sm:text-lg">
+            Check what still holds up. PulseCheck researches your article&apos;s
+            factual claims and returns the smallest evidence-backed changes.
           </p>
         </div>
 
-        <div className="mt-10">
+        <div className="mt-8">
           <ArticleEditor
             article={article}
             status={status}
@@ -205,15 +202,15 @@ export function PulseCheckApp({
         {status === "completed" ? (
           <section
             aria-labelledby="results-heading"
-            className="mt-6 border-t border-zinc-200 pt-6"
+            className="mt-6 border-t border-white/10 pt-6"
           >
             <h2
               id="results-heading"
-              className="text-base font-semibold text-zinc-950"
+              className="text-base font-semibold text-[#ececec]"
             >
               Analysis ready
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#b4b4b4]">
               The analysis completed successfully. Your article remains
               unchanged.
             </p>
