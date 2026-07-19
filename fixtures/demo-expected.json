@@ -1,0 +1,173 @@
+{
+  "asOfDate": "2026-07-18",
+  "findings": [
+    {
+      "id": "flat-demand",
+      "sourceText": "U.S. electricity demand had remained nearly flat for roughly two decades",
+      "prefixText": null,
+      "suffixText": ", and Jennifer Granholm",
+      "claimType": "fact",
+      "verdict": "verified",
+      "forecastStatus": null,
+      "confidence": "high",
+      "explanation": "Authoritative and contemporaneous sources describe roughly 15 to 20 years of nearly flat U.S. electricity demand before the recent return to growth.",
+      "replacement": null,
+      "checkedAt": "2026-07-18",
+      "sources": [
+        {
+          "url": "https://www.eia.gov/todayinenergy/detail.php?id=65264",
+          "title": "After more than a decade of little change, U.S. electricity consumption is rising again",
+          "publisher": "U.S. Energy Information Administration",
+          "publishedAt": "2025-05-13"
+        }
+      ]
+    },
+    {
+      "id": "energy-secretary",
+      "sourceText": "Jennifer Granholm is the U.S. secretary of energy",
+      "prefixText": "roughly two decades, and ",
+      "suffixText": ". Lawrence Berkeley",
+      "claimType": "fact",
+      "verdict": "outdated",
+      "forecastStatus": null,
+      "confidence": "high",
+      "explanation": "The Department of Energy lists Chris Wright, not Jennifer Granholm, as the current secretary.",
+      "replacement": "Chris Wright is the U.S. secretary of energy",
+      "checkedAt": "2026-07-18",
+      "sources": [
+        {
+          "url": "https://www.energy.gov/leadership-organization",
+          "title": "Leadership & Organization",
+          "publisher": "U.S. Department of Energy",
+          "publishedAt": null
+        }
+      ]
+    },
+    {
+      "id": "lbnl-old-forecast",
+      "sourceText": "Lawrence Berkeley National Laboratory currently estimates that data centers could account for 6.7% to 12.0% of U.S. electricity use by 2028",
+      "prefixText": "secretary of energy. ",
+      "suffixText": ", and that forecast",
+      "claimType": "forecast",
+      "verdict": "outdated",
+      "forecastStatus": "revised",
+      "confidence": "high",
+      "explanation": "LBNL's June 2026 update replaced the older 2028 range with a 2030 reference case and uncertainty range.",
+      "replacement": "Lawrence Berkeley National Laboratory's June 2026 update estimates that data centers could account for 9.5% to 15.3% of U.S. electricity use by 2030, with an 11.8% reference case",
+      "checkedAt": "2026-07-18",
+      "sources": [
+        {
+          "url": "https://eta-publications.lbl.gov/publications/united-states-data-center-energy-2025",
+          "title": "United States Data Center Energy Usage Report: 2025 Update",
+          "publisher": "Lawrence Berkeley National Laboratory",
+          "publishedAt": null
+        }
+      ]
+    },
+    {
+      "id": "never-updated",
+      "sourceText": "that forecast has never been updated",
+      "prefixText": "use by 2028, and ",
+      "suffixText": ". A newer analysis",
+      "claimType": "fact",
+      "verdict": "contradicted",
+      "forecastStatus": null,
+      "confidence": "high",
+      "explanation": "LBNL published an update to its 2024 report in June 2026.",
+      "replacement": "that forecast was updated in June 2026",
+      "checkedAt": "2026-07-18",
+      "sources": [
+        {
+          "url": "https://eta-publications.lbl.gov/publications/united-states-data-center-energy-2025",
+          "title": "United States Data Center Energy Usage Report: 2025 Update",
+          "publisher": "Lawrence Berkeley National Laboratory",
+          "publishedAt": null
+        }
+      ]
+    },
+    {
+      "id": "two-percent",
+      "sourceText": "A newer analysis puts the 2030 share at only 2%",
+      "prefixText": "never been updated. ",
+      "suffixText": ". Every U.S.",
+      "claimType": "fact",
+      "verdict": "contradicted",
+      "forecastStatus": null,
+      "confidence": "high",
+      "explanation": "LBNL's newer analysis gives an 11.8% reference case and a 9.5% to 15.3% range for 2030, not 2%.",
+      "replacement": "The newer analysis puts the 2030 reference case at 11.8%, within a 9.5% to 15.3% range",
+      "checkedAt": "2026-07-18",
+      "sources": [
+        {
+          "url": "https://eta-publications.lbl.gov/publications/united-states-data-center-energy-2025",
+          "title": "United States Data Center Energy Usage Report: 2025 Update",
+          "publisher": "Lawrence Berkeley National Laboratory",
+          "publishedAt": null
+        }
+      ]
+    },
+    {
+      "id": "fully-funded",
+      "sourceText": "Every U.S. data center project is fully funded",
+      "prefixText": "at only 2%. ",
+      "suffixText": ", so data centers",
+      "claimType": "fact",
+      "verdict": "unsupported",
+      "forecastStatus": null,
+      "confidence": "low",
+      "explanation": "The universal funding claim is broader than the available project evidence and cannot be established.",
+      "replacement": null,
+      "checkedAt": "2026-07-18",
+      "sources": []
+    },
+    {
+      "id": "exact-consumption",
+      "sourceText": "data centers will consume exactly 649 TWh in 2030",
+      "prefixText": "fully funded, so ",
+      "suffixText": " and all planned",
+      "claimType": "forecast",
+      "verdict": "needs_context",
+      "forecastStatus": "pending",
+      "confidence": "high",
+      "explanation": "649 TWh is LBNL's reference case, not an exact outcome; the report gives a 521 to 843 TWh uncertainty range.",
+      "replacement": "LBNL's reference case estimates 649 TWh in 2030, within a 521 to 843 TWh uncertainty range",
+      "checkedAt": "2026-07-18",
+      "sources": [
+        {
+          "url": "https://eta-publications.lbl.gov/publications/united-states-data-center-energy-2025",
+          "title": "United States Data Center Energy Usage Report: 2025 Update",
+          "publisher": "Lawrence Berkeley National Laboratory",
+          "publishedAt": null
+        }
+      ]
+    },
+    {
+      "id": "all-operating",
+      "sourceText": "all planned facilities will be operating by then",
+      "prefixText": "649 TWh in 2030 and ",
+      "suffixText": ". The grid is",
+      "claimType": "forecast",
+      "verdict": "unresolved",
+      "forecastStatus": "pending",
+      "confidence": "low",
+      "explanation": "The claim is a universal future outcome that cannot yet be verified and is not supported project by project.",
+      "replacement": null,
+      "checkedAt": "2026-07-18",
+      "sources": []
+    },
+    {
+      "id": "biggest-threat",
+      "sourceText": "The grid is unquestionably the biggest threat to U.S. AI leadership",
+      "prefixText": "operating by then. ",
+      "suffixText": null,
+      "claimType": "opinion",
+      "verdict": "opinion",
+      "forecastStatus": null,
+      "confidence": "high",
+      "explanation": "The absolute ranking of threats is a judgment rather than a directly measurable factual claim.",
+      "replacement": null,
+      "checkedAt": "2026-07-18",
+      "sources": []
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Next.js and build output
+.next/
+out/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Test output
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Local provider and deployment state
+.vercel/
+.supabase/
+supabase/.branches/
+supabase/.temp/
+
+# Environment files: commit only the documented template
+.env
+.env.*
+!.env.example
+
+# Logs and local caches
+*.log
+.eslintcache
+.turbo/
+.cache/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local AI/tool metadata
+.codex/
+.agents/
