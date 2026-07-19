@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  ArticleEditor,
+  ArticleComposer,
   MAX_ARTICLE_LENGTH,
-  type ArticleEditorStatus,
-} from "@/components/article-editor";
+} from "@/components/article-composer";
+import { FindingsPreview } from "@/components/findings-preview";
 import { ProductShell } from "@/components/product-shell";
 import { createFixtureRunClient } from "@/lib/client/create-fixture-run-client";
 import { HttpRunClient, RunClientError } from "@/lib/client/http-run-client";
@@ -20,10 +20,14 @@ type PulseCheckAppProps = {
   runClient?: RunClient;
 };
 
+type AppStatus = "empty" | "ready" | "checking" | "completed" | "error";
+
+const FILTER_CHIPS = ["All", "Facts", "Forecasts", "Opinions"] as const;
+
 function getErrorMessage(error: unknown) {
   if (
     error instanceof Error &&
-    error.message.includes("only supports the prepared demo article")
+    error.message.includes("prepared demo article")
   ) {
     return "This prototype can only check the prepared demo article. Load the demo article to continue.";
   }
@@ -55,6 +59,29 @@ function writeRunParam(runId: string | null) {
   window.history.replaceState(null, "", url);
 }
 
+function SuggestionIcon({ path }: { path: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-[18px] w-[18px] shrink-0"
+    >
+      <path d={path} />
+    </svg>
+  );
+}
+
+const SUGGESTION_ICONS = {
+  bolt: "m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z",
+  news: "M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z",
+  history: "M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
+} as const;
+
 export function PulseCheckApp({
   demoArticle,
   demoExpected,
@@ -63,7 +90,7 @@ export function PulseCheckApp({
 }: PulseCheckAppProps) {
   const [article, setArticle] = useState("");
   const [runView, setRunView] = useState<RunView | null>(null);
-  const [status, setStatus] = useState<ArticleEditorStatus>("empty");
+  const [status, setStatus] = useState<AppStatus>("empty");
   const [error, setError] = useState<string | null>(null);
   const [durableClient, setDurableClient] = useState<RunClient | null>(null);
 
@@ -135,17 +162,7 @@ export function PulseCheckApp({
   }
 
   async function handleCheckArticle() {
-    if (article.length === 0) {
-      setError("Paste an article before checking.");
-      setStatus("error");
-      return;
-    }
-
-    if (article.length > MAX_ARTICLE_LENGTH) {
-      setError(
-        `Articles must be ${MAX_ARTICLE_LENGTH.toLocaleString()} characters or fewer.`,
-      );
-      setStatus("error");
+    if (article.length === 0 || article.length > MAX_ARTICLE_LENGTH) {
       return;
     }
 
@@ -171,52 +188,125 @@ export function PulseCheckApp({
     }
   }
 
-  const findingsCount = runView?.findings?.length ?? null;
+  const findings = runView?.findings ?? [];
+  const isCompleted = status === "completed" && runView !== null;
 
   return (
     <ProductShell>
-      <main className="mx-auto w-full max-w-3xl px-5 py-10 sm:py-14">
-        <div className="text-center">
-          <h1 className="text-3xl font-semibold tracking-[-0.02em] text-[#ececec] sm:text-4xl">
-            PulseCheck
-          </h1>
-          <p className="mt-3 text-base leading-7 text-[#b4b4b4] sm:text-lg">
-            Check what still holds up. PulseCheck researches your article&apos;s
-            factual claims and returns the smallest evidence-backed changes.
-          </p>
-        </div>
+      {isCompleted ? (
+        <main className="flex min-h-0 flex-1 flex-col px-5 pt-8 pb-2 sm:px-8">
+          <div className="rise-in mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h1 className="text-[22px] font-semibold tracking-tight text-[#f3f3f3]">
+                  PulseCheck
+                </h1>
+                <p role="status" className="mt-0.5 text-sm text-[#8e8ea0]">
+                  {findings.length}{" "}
+                  {findings.length === 1 ? "finding" : "findings"} ready to
+                  review.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="rounded-full bg-white px-4 py-2 text-sm font-medium text-[#0d0d0d] outline-none transition hover:bg-[#ececec] focus-visible:ring-2 focus-visible:ring-white/60"
+              >
+                New check
+              </button>
+            </div>
 
-        <div className="mt-8">
-          <ArticleEditor
-            article={article}
-            status={status}
-            error={error}
-            findingsCount={findingsCount}
-            onArticleChange={handleArticleChange}
-            onLoadDemo={handleLoadDemo}
-            onCheckArticle={handleCheckArticle}
-            onReset={handleReset}
-          />
-        </div>
+            <div className="mt-5 flex items-center gap-1.5">
+              {FILTER_CHIPS.map((chip, index) => (
+                <span
+                  key={chip}
+                  className={`cursor-default rounded-full px-3.5 py-1.5 text-sm transition ${
+                    index === 0
+                      ? "bg-[#2f2f2f] font-medium text-[#f3f3f3]"
+                      : "text-[#9b9b9b] hover:bg-white/5"
+                  }`}
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
 
-        {status === "completed" ? (
-          <section
-            aria-labelledby="results-heading"
-            className="mt-6 border-t border-white/10 pt-6"
-          >
-            <h2
-              id="results-heading"
-              className="text-base font-semibold text-[#ececec]"
-            >
-              Analysis ready
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#b4b4b4]">
-              The analysis completed successfully. Your article remains
-              unchanged.
+            <div className="mt-5 max-h-[26vh] shrink-0 overflow-y-auto border-b border-white/10 pb-5 pr-1 text-[15px] leading-7 whitespace-pre-wrap text-[#c6c6c6]">
+              {runView.document.originalText}
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <FindingsPreview findings={findings} />
+            </div>
+          </div>
+        </main>
+      ) : (
+        <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-5">
+          <div className="w-full max-w-[720px] pb-16">
+            <h1 className="text-center text-[28px] font-medium tracking-tight text-[#f3f3f3] sm:text-[32px]">
+              What still holds up today?
+            </h1>
+
+            <div className="mt-8">
+              <ArticleComposer
+                article={article}
+                isChecking={status === "checking"}
+                onArticleChange={handleArticleChange}
+                onLoadDemo={handleLoadDemo}
+                onCheckArticle={handleCheckArticle}
+              />
+            </div>
+
+            <p className="mt-3 text-center text-xs leading-5 text-[#8e8ea0]">
+              Your article is sent to OpenAI for research. Do not paste secrets
+              or information you are not authorized to process.
             </p>
-          </section>
-        ) : null}
-      </main>
+
+            {status === "checking" ? (
+              <p
+                role="status"
+                aria-live="polite"
+                className="shimmer-text mt-8 text-center text-[15px]"
+              >
+                Researching and validating claims…
+              </p>
+            ) : null}
+
+            {error ? (
+              <p role="alert" className="mt-8 text-center text-sm text-red-400">
+                {error}
+              </p>
+            ) : null}
+
+            {article.length === 0 && status !== "checking" && !error ? (
+              <div className="mx-auto mt-10 flex max-w-[420px] flex-col">
+                <button
+                  type="button"
+                  onClick={handleLoadDemo}
+                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] text-[#e3e3e3] outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-white/40"
+                >
+                  <span className="text-[#b4b4b4]">
+                    <SuggestionIcon path={SUGGESTION_ICONS.bolt} />
+                  </span>
+                  Load the demo article
+                </button>
+                <span className="flex cursor-default items-center gap-3 rounded-xl px-3 py-3 text-[15px] text-[#e3e3e3]">
+                  <span className="text-[#b4b4b4]">
+                    <SuggestionIcon path={SUGGESTION_ICONS.news} />
+                  </span>
+                  Verify facts in a news story
+                </span>
+                <span className="flex cursor-default items-center gap-3 rounded-xl px-3 py-3 text-[15px] text-[#e3e3e3]">
+                  <span className="text-[#b4b4b4]">
+                    <SuggestionIcon path={SUGGESTION_ICONS.history} />
+                  </span>
+                  Re-check an aging blog post
+                </span>
+              </div>
+            ) : null}
+          </div>
+        </main>
+      )}
     </ProductShell>
   );
 }

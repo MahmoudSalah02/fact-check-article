@@ -63,10 +63,10 @@ const RECENTS = [
 
 export function ProductShell({ children }: ProductShellProps) {
   return (
-    <div className="flex min-h-dvh bg-[#212121] text-[#ececec]">
+    <div className="flex h-dvh overflow-hidden bg-[#0d0d0d] text-[#ececec]">
       <aside
         aria-label="Product sidebar"
-        className="hidden w-[260px] shrink-0 flex-col bg-[#171717] md:flex"
+        className="hidden w-[260px] shrink-0 flex-col border-r border-white/5 bg-[#0d0d0d] md:flex"
       >
         <div className="px-4 pt-4 pb-2">
           <span className="text-lg font-semibold tracking-tight text-[#ececec]">
@@ -78,7 +78,7 @@ export function ProductShell({ children }: ProductShellProps) {
           aria-label="Product navigation"
           className="flex-1 overflow-y-auto px-2 pb-4"
         >
-          <span className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#ececec] transition hover:bg-[#242424]">
+          <span className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#ececec] transition hover:bg-white/5">
             <span className="text-[#b4b4b4]">
               <Icon path={ICON_PATHS.newChat} />
             </span>
@@ -88,7 +88,7 @@ export function ProductShell({ children }: ProductShellProps) {
           <Link
             href="/"
             aria-current="page"
-            className="flex items-center gap-2.5 rounded-lg bg-[#2f2f2f] px-2.5 py-2 text-sm font-medium text-[#ececec] outline-none transition hover:bg-[#343434] focus-visible:ring-2 focus-visible:ring-white/40"
+            className="flex items-center gap-2.5 rounded-lg bg-[#212121] px-2.5 py-2 text-sm font-medium text-[#f3f3f3] outline-none transition hover:bg-[#2a2a2a] focus-visible:ring-2 focus-visible:ring-white/40"
           >
             <span className="text-[#ececec]">
               <Icon path={ICON_PATHS.pulseCheck} />
@@ -99,7 +99,7 @@ export function ProductShell({ children }: ProductShellProps) {
           {SECONDARY_NAV.map((item) => (
             <span
               key={item.label}
-              className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#ececec] transition hover:bg-[#242424]"
+              className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#ececec] transition hover:bg-white/5"
             >
               <span className="text-[#b4b4b4]">
                 <Icon path={item.icon} />
@@ -108,7 +108,7 @@ export function ProductShell({ children }: ProductShellProps) {
             </span>
           ))}
 
-          <span className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#ececec] transition hover:bg-[#242424]">
+          <span className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#ececec] transition hover:bg-white/5">
             <span className="text-[#b4b4b4]">
               <Icon path={ICON_PATHS.more} strokeWidth={2.5} />
             </span>
@@ -121,7 +121,7 @@ export function ProductShell({ children }: ProductShellProps) {
           <ul>
             {RECENTS.map((item) => (
               <li key={item}>
-                <span className="block cursor-default truncate rounded-lg px-2.5 py-1.5 text-sm text-[#d1d1d1] transition hover:bg-[#242424]">
+                <span className="block cursor-default truncate rounded-lg px-2.5 py-1.5 text-sm text-[#d1d1d1] transition hover:bg-white/5">
                   {item}
                 </span>
               </li>
@@ -147,11 +147,11 @@ export function ProductShell({ children }: ProductShellProps) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex justify-center px-4 pt-4">
-          <span className="flex items-center rounded-full bg-[#2f2f2f] p-1 text-sm">
-            <span className="cursor-default rounded-full bg-[#414141] px-4 py-1.5 font-medium text-[#ececec]">
+          <span className="flex items-center rounded-full bg-white/5 p-1 text-sm">
+            <span className="cursor-default rounded-full bg-[#2f2f2f] px-4 py-1.5 font-medium text-[#f3f3f3]">
               Chat
             </span>
-            <span className="cursor-default rounded-full px-4 py-1.5 text-[#b4b4b4]">
+            <span className="cursor-default rounded-full px-4 py-1.5 text-[#9b9b9b]">
               Work
             </span>
           </span>
