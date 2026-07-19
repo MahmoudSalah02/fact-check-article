@@ -1,14 +1,13 @@
 import {
   CreateRunInputSchema,
   CreateRunResultSchema,
-  FindingSchema,
   GetRunResultSchema,
-  type Finding,
   type CreateRunInput,
   type CreateRunResult,
   type GetRunResult,
   type RunClient,
 } from "@/lib/contracts";
+import { prepareFixtureFindings } from "@/lib/server/fixture-findings";
 import type { AnalysisProvider } from "@/lib/analysis/provider";
 import type {
   DocumentRepository,
@@ -40,12 +39,10 @@ export class FakeRunClient implements RunClient {
       await this.runs.markInProgress(run.id, submission.providerRunId);
 
       const output = await this.analysis.retrieve(submission.providerRunId);
-      const findings = output.findings.map((finding) =>
-        FindingSchema.parse({
-          ...finding,
-          ...resolveFixtureSpan(document.originalText, finding),
-          checkedAt: run.checkedAt,
-        }),
+      const findings = prepareFixtureFindings(
+        document.originalText,
+        run.checkedAt,
+        output.findings,
       );
       const completed = await this.runs.complete(run.id, findings);
 
@@ -72,40 +69,4 @@ export class FakeRunClient implements RunClient {
       findings: await this.runs.getFindings(runId),
     });
   }
-}
-
-function resolveFixtureSpan(
-  articleText: string,
-  finding: Pick<Finding, "id" | "sourceText" | "prefixText" | "suffixText">,
-) {
-  // TODO(F2): Replace this fixture-only resolver with the complete ambiguity/overlap engine.
-  // Acceptance: preserve Unicode and every untouched character across all documented edge cases.
-  const startOffset = articleText.indexOf(finding.sourceText);
-  if (
-    startOffset < 0 ||
-    articleText.lastIndexOf(finding.sourceText) !== startOffset
-  ) {
-    throw new Error(
-      `Fixture sourceText must resolve exactly once: ${finding.id}`,
-    );
-  }
-
-  if (
-    finding.prefixText !== null &&
-    articleText.slice(startOffset - finding.prefixText.length, startOffset) !==
-      finding.prefixText
-  ) {
-    throw new Error(`Fixture prefix does not match: ${finding.id}`);
-  }
-
-  const endOffset = startOffset + finding.sourceText.length;
-  if (
-    finding.suffixText !== null &&
-    articleText.slice(endOffset, endOffset + finding.suffixText.length) !==
-      finding.suffixText
-  ) {
-    throw new Error(`Fixture suffix does not match: ${finding.id}`);
-  }
-
-  return { startOffset, endOffset };
 }

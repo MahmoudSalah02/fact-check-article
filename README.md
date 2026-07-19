@@ -52,6 +52,10 @@ pnpm build
 
 GitHub Actions runs the same checks on pull requests and `main`. Dependencies and third-party Actions are pinned through the committed lockfile and immutable Action SHAs.
 
+### Build bundler
+
+`pnpm dev` uses Turbopack for fast local iteration, but `pnpm build` runs `next build --webpack`. Turbopack's production build currently mis-orders Zod v4's ISO schema modules and crashes with `Cannot access 'af' before initialization` while collecting API-route page data (already on the latest stable Zod, 4.4.3). The webpack build is unaffected and fully supported. `pnpm build:turbopack` is kept so we can re-test Turbopack after a future Next.js or Zod fix and flip `build` back.
+
 Vercel Previews use standard deployment protection. Automated Preview tests may provide `VERCEL_AUTOMATION_BYPASS_SECRET` through secure environment storage; Playwright sends it only as the documented Vercel bypass header.
 
 ## M1 boundaries
