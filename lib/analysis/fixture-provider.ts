@@ -72,6 +72,6 @@ export class FixtureAnalysisProvider implements AnalysisProvider {
     if (!this.#submissions.has(providerRunId)) {
       throw new Error("Unknown fixture analysis submission");
     }
-    return this.#fixture.output;
+    return structuredClone(this.#fixture.output);
   }
 }

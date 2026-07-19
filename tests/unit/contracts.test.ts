@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import demoExpected from "@/fixtures/demo-expected.json";
 import {
   AnalysisFindingSchema,
+  AnalysisRunSchema,
   AnalysisOutputSchema,
   FindingSchema,
   SourceSchema,
@@ -108,5 +109,28 @@ describe("finding contracts", () => {
         checkedAt: "2026-07-18",
       }),
     ).toThrow(/Offsets/);
+  });
+
+  it("requires error codes only for failed runs", () => {
+    const baseRun = {
+      id: crypto.randomUUID(),
+      documentId: crypto.randomUUID(),
+      status: "failed",
+      checkedAt: "2026-07-18",
+      model: null,
+      providerResponseId: null,
+      errorCode: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    expect(() => AnalysisRunSchema.parse(baseRun)).toThrow(/error code/);
+    expect(() =>
+      AnalysisRunSchema.parse({
+        ...baseRun,
+        status: "completed",
+        errorCode: "unexpected",
+      }),
+    ).toThrow(/Only failed/);
   });
 });

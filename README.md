@@ -35,7 +35,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open <http://127.0.0.1:3000>, choose **Load demo article**, then choose **Check article**. No `.env.local` is needed for M1. If you create one for future work, start from `.env.example` and never commit it.
+Open <http://localhost:3000>, choose **Load demo article**, then choose **Check article**. No `.env.local` is needed for M1. If you create one for future work, start from `.env.example` and never commit it.
 
 ## Quality gate
 
@@ -51,6 +51,8 @@ pnpm build
 ```
 
 GitHub Actions runs the same checks on pull requests and `main`. Dependencies and third-party Actions are pinned through the committed lockfile and immutable Action SHAs.
+
+Vercel Previews use standard deployment protection. Automated Preview tests may provide `VERCEL_AUTOMATION_BYPASS_SECRET` through secure environment storage; Playwright sends it only as the documented Vercel bypass header.
 
 ## M1 boundaries
 

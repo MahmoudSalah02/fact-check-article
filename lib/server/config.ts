@@ -8,7 +8,7 @@ const ServerConfigSchema = z.object({
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;
 
 export function readServerConfig(
-  environment: NodeJS.ProcessEnv = process.env,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
 ): ServerConfig {
   return ServerConfigSchema.parse(environment);
 }

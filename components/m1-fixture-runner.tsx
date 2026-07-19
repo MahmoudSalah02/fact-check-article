@@ -3,12 +3,7 @@
 import { useMemo, useState } from "react";
 
 import type { RunView } from "@/lib/contracts";
-import { FixtureAnalysisProvider } from "@/lib/analysis/fixture-provider";
-import { FakeRunClient } from "@/lib/server/fake-run-client";
-import {
-  InMemoryDocumentRepository,
-  InMemoryRunRepository,
-} from "@/lib/server/repositories";
+import { createFixtureRunClient } from "@/lib/client/create-fixture-run-client";
 
 type Props = {
   demoArticle: string;
@@ -23,15 +18,10 @@ export function M1FixtureRunner({ demoArticle, demoExpected }: Props) {
   >("empty");
   const [error, setError] = useState<string | null>(null);
 
-  const runClient = useMemo(() => {
-    const provider = new FixtureAnalysisProvider(demoArticle, demoExpected);
-    return new FakeRunClient(
-      new InMemoryDocumentRepository(),
-      new InMemoryRunRepository(),
-      provider,
-      provider.checkedAt,
-    );
-  }, [demoArticle, demoExpected]);
+  const runClient = useMemo(
+    () => createFixtureRunClient(demoArticle, demoExpected),
+    [demoArticle, demoExpected],
+  );
 
   function loadDemo() {
     setArticle(demoArticle);

@@ -18,6 +18,7 @@ export interface RunRepository {
     providerResponseId: string,
   ): Promise<AnalysisRun>;
   complete(runId: string, findings: Finding[]): Promise<AnalysisRun>;
+  fail(runId: string, errorCode: string): Promise<AnalysisRun>;
   getFindings(runId: string): Promise<Finding[] | null>;
 }
 
@@ -30,12 +31,13 @@ export class InMemoryDocumentRepository implements DocumentRepository {
       ...input,
       createdAt: new Date().toISOString(),
     };
-    this.#documents.set(document.id, document);
-    return document;
+    this.#documents.set(document.id, structuredClone(document));
+    return structuredClone(document);
   }
 
   async getById(documentId: string): Promise<Document | null> {
-    return this.#documents.get(documentId) ?? null;
+    const document = this.#documents.get(documentId);
+    return document ? structuredClone(document) : null;
   }
 }
 
@@ -56,12 +58,13 @@ export class InMemoryRunRepository implements RunRepository {
       createdAt: timestamp,
       updatedAt: timestamp,
     };
-    this.#runs.set(run.id, run);
-    return run;
+    this.#runs.set(run.id, structuredClone(run));
+    return structuredClone(run);
   }
 
   async getById(runId: string): Promise<AnalysisRun | null> {
-    return this.#runs.get(runId) ?? null;
+    const run = this.#runs.get(runId);
+    return run ? structuredClone(run) : null;
   }
 
   async markInProgress(
@@ -76,7 +79,7 @@ export class InMemoryRunRepository implements RunRepository {
       updatedAt: new Date().toISOString(),
     };
     this.#runs.set(runId, updated);
-    return updated;
+    return structuredClone(updated);
   }
 
   async complete(runId: string, findings: Finding[]): Promise<AnalysisRun> {
@@ -88,7 +91,19 @@ export class InMemoryRunRepository implements RunRepository {
     };
     this.#findings.set(runId, structuredClone(findings));
     this.#runs.set(runId, updated);
-    return updated;
+    return structuredClone(updated);
+  }
+
+  async fail(runId: string, errorCode: string): Promise<AnalysisRun> {
+    const run = this.#requireRun(runId);
+    const updated: AnalysisRun = {
+      ...run,
+      status: "failed",
+      errorCode,
+      updatedAt: new Date().toISOString(),
+    };
+    this.#runs.set(runId, updated);
+    return structuredClone(updated);
   }
 
   async getFindings(runId: string): Promise<Finding[] | null> {
@@ -99,6 +114,6 @@ export class InMemoryRunRepository implements RunRepository {
   #requireRun(runId: string): AnalysisRun {
     const run = this.#runs.get(runId);
     if (!run) throw new Error(`Unknown run: ${runId}`);
-    return run;
+    return structuredClone(run);
   }
 }

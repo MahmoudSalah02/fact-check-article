@@ -1,12 +1,20 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import demoExpected from "@/fixtures/demo-expected.json";
 import { M1FixtureRunner } from "@/components/m1-fixture-runner";
 
-const demoArticle =
-  "U.S. electricity demand had remained nearly flat for roughly two decades, and Jennifer Granholm is the U.S. secretary of energy. Lawrence Berkeley National Laboratory currently estimates that data centers could account for 6.7% to 12.0% of U.S. electricity use by 2028, and that forecast has never been updated. A newer analysis puts the 2030 share at only 2%. Every U.S. data center project is fully funded, so data centers will consume exactly 649 TWh in 2030 and all planned facilities will be operating by then. The grid is unquestionably the biggest threat to U.S. AI leadership.";
+let demoArticle: string;
+
+beforeAll(async () => {
+  demoArticle = (
+    await readFile(join(process.cwd(), "fixtures", "demo-article.txt"), "utf8")
+  ).trim();
+});
 
 describe("M1 fixture runner", () => {
   it("loads and checks the prepared article", async () => {

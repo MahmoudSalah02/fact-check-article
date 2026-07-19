@@ -4,6 +4,9 @@ import {
   FindingSchema,
   GetRunResultSchema,
   type Finding,
+  type CreateRunInput,
+  type CreateRunResult,
+  type GetRunResult,
   type RunClient,
 } from "@/lib/contracts";
 import type { AnalysisProvider } from "@/lib/analysis/provider";
@@ -20,7 +23,7 @@ export class FakeRunClient implements RunClient {
     private readonly checkedAt: string,
   ) {}
 
-  async createRun(input: unknown) {
+  async createRun(input: CreateRunInput): Promise<CreateRunResult> {
     const parsed = CreateRunInputSchema.parse(input);
     const document = await this.documents.create({
       userId: "local-fixture-user",
@@ -28,31 +31,36 @@ export class FakeRunClient implements RunClient {
       originalText: parsed.text,
     });
     const run = await this.runs.create(document.id, this.checkedAt);
-    const submission = await this.analysis.start({
-      runId: run.id,
-      articleText: document.originalText,
-      checkedAt: run.checkedAt,
-    });
-    await this.runs.markInProgress(run.id, submission.providerRunId);
-
-    const output = await this.analysis.retrieve(submission.providerRunId);
-    const findings = output.findings.map((finding) =>
-      FindingSchema.parse({
-        ...finding,
-        ...resolveFixtureSpan(document.originalText, finding),
+    try {
+      const submission = await this.analysis.start({
+        runId: run.id,
+        articleText: document.originalText,
         checkedAt: run.checkedAt,
-      }),
-    );
-    const completed = await this.runs.complete(run.id, findings);
+      });
+      await this.runs.markInProgress(run.id, submission.providerRunId);
 
-    return CreateRunResultSchema.parse({
-      runId: completed.id,
-      status: completed.status,
-      createdAt: completed.createdAt,
-    });
+      const output = await this.analysis.retrieve(submission.providerRunId);
+      const findings = output.findings.map((finding) =>
+        FindingSchema.parse({
+          ...finding,
+          ...resolveFixtureSpan(document.originalText, finding),
+          checkedAt: run.checkedAt,
+        }),
+      );
+      const completed = await this.runs.complete(run.id, findings);
+
+      return CreateRunResultSchema.parse({
+        runId: completed.id,
+        status: completed.status,
+        createdAt: completed.createdAt,
+      });
+    } catch (error) {
+      await this.runs.fail(run.id, "fixture_analysis_failed");
+      throw error;
+    }
   }
 
-  async getRun(runId: string) {
+  async getRun(runId: string): Promise<GetRunResult> {
     const run = await this.runs.getById(runId);
     if (!run) throw new Error("Run not found");
     const document = await this.documents.getById(run.documentId);

@@ -31,7 +31,23 @@ export const AnalysisRunSchema = z
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.status === "failed" && value.errorCode === null) {
+      context.addIssue({
+        code: "custom",
+        path: ["errorCode"],
+        message: "Failed runs require an error code",
+      });
+    }
+    if (value.status !== "failed" && value.errorCode !== null) {
+      context.addIssue({
+        code: "custom",
+        path: ["errorCode"],
+        message: "Only failed runs may expose an error code",
+      });
+    }
+  });
 
 export const EditDecisionSchema = z
   .object({

@@ -11,6 +11,7 @@ import {
   InMemoryDocumentRepository,
   InMemoryRunRepository,
 } from "@/lib/server/repositories";
+import { runRunClientContract } from "@/tests/contract/run-client-contract";
 
 let article: string;
 
@@ -30,26 +31,9 @@ function createClient(): RunClient {
   );
 }
 
-describe("RunClient adapter contract", () => {
-  it("creates a run and returns an atomic completed view", async () => {
-    const client = createClient();
-    const created = await client.createRun({
-      text: article,
-      title: "Contract test",
-    });
-    const result = await client.getRun(created.runId);
+runRunClientContract("FakeRunClient", () => ({ article, createClient }));
 
-    expect(created.status).toBe("completed");
-    expect(result.run.status).toBe("completed");
-    expect(result.document.originalText).toBe(article);
-    expect(result.findings).toHaveLength(9);
-    expect(
-      result.findings?.every(
-        (finding) => finding.endOffset > finding.startOffset,
-      ),
-    ).toBe(true);
-  });
-
+describe("fixture adapter behavior", () => {
   it("rejects non-fixture text without fabricating findings", async () => {
     await expect(
       createClient().createRun({ text: "A different article.", title: null }),
