@@ -48,12 +48,9 @@ describe("F1 PulseCheck experience", () => {
       "page",
     );
     expect(screen.getByText("ChatGPT")).toBeVisible();
-    expect(screen.getByText("New chat")).toBeVisible();
-    expect(screen.getByText("Library")).toBeVisible();
-    expect(screen.getByText("Recents")).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "What still holds up today?" }),
-    ).toBeVisible();
+    expect(screen.getByText("Codex")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
+    expect(screen.getByText("What still holds up today?")).toBeVisible();
     expect(
       screen.getByText("Concept prototype; not an official OpenAI product."),
     ).toBeVisible();
@@ -64,7 +61,7 @@ describe("F1 PulseCheck experience", () => {
       screen.getByRole("button", { name: "Check article" }),
     ).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Load the demo article" }),
+      screen.getByRole("button", { name: "Load demo article" }),
     ).toBeVisible();
     expect(
       screen.getByText(/do not paste secrets or information/i),
@@ -80,7 +77,14 @@ describe("F1 PulseCheck experience", () => {
 
     expect(article).toHaveValue("A checkable statement.");
     expect(screen.getByRole("button", { name: "Check article" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Clear article" })).toBeEnabled();
     expect(screen.getByText("22 / 20,000")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Clear article" }));
+    expect(article).toHaveValue("");
+    expect(
+      screen.getByRole("button", { name: "Check article" }),
+    ).toBeDisabled();
   });
 
   it("supports the empty-state journey from the keyboard", async () => {
@@ -89,6 +93,9 @@ describe("F1 PulseCheck experience", () => {
 
     await user.tab();
     expect(screen.getByRole("link", { name: "PulseCheck" })).toHaveFocus();
+
+    await user.tab();
+    expect(screen.getByRole("textbox", { name: "Article text" })).toHaveFocus();
 
     await user.tab();
     expect(
@@ -137,9 +144,7 @@ describe("F1 PulseCheck experience", () => {
     };
     renderPulseCheck(runClient);
 
-    await user.click(
-      screen.getByRole("button", { name: "Load the demo article" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Load demo article" }));
     await user.click(screen.getByRole("button", { name: "Check article" }));
 
     expect(screen.getByRole("status")).toHaveTextContent(
@@ -154,6 +159,9 @@ describe("F1 PulseCheck experience", () => {
     expect(
       screen.getByRole("button", { name: "Check article" }),
     ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Clear article" }),
+    ).toBeDisabled();
 
     deferredRun.reject(new Error("Fixture service unavailable"));
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -165,9 +173,7 @@ describe("F1 PulseCheck experience", () => {
     const user = userEvent.setup();
     renderPulseCheck();
 
-    await user.click(
-      screen.getByRole("button", { name: "Load the demo article" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Load demo article" }));
     await user.click(screen.getByRole("button", { name: "Check article" }));
 
     expect(
@@ -180,7 +186,7 @@ describe("F1 PulseCheck experience", () => {
     expect(within(findings).getAllByRole("listitem")).toHaveLength(9);
   });
 
-  it("shows the honest fixture error for a non-demo article and resets via New check", async () => {
+  it("shows the honest fixture error and offers an immediate reset action", async () => {
     const user = userEvent.setup();
     renderPulseCheck();
 
@@ -193,15 +199,12 @@ describe("F1 PulseCheck experience", () => {
     );
     expect(article).toHaveValue("This is not the prepared article.");
 
-    await user.click(screen.getByRole("button", { name: "Load demo article" }));
-    await user.click(screen.getByRole("button", { name: "Check article" }));
-    await user.click(await screen.findByRole("button", { name: "New check" }));
+    await user.click(screen.getByRole("button", { name: "Clear article" }));
 
-    expect(
-      screen.getByRole("heading", { name: "What still holds up today?" }),
-    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: "Article text" })).toHaveValue(
       "",
     );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

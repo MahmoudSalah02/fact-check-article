@@ -2,12 +2,12 @@ import type { Finding, Verdict } from "@/lib/contracts";
 
 const VERDICT_META: Record<Verdict, { label: string; dot: string }> = {
   verified: { label: "Verified", dot: "bg-emerald-400" },
-  outdated: { label: "Outdated", dot: "bg-amber-300" },
+  outdated: { label: "Outdated", dot: "bg-sky-400" },
   contradicted: { label: "Contradicted", dot: "bg-red-400" },
-  unsupported: { label: "Unsupported", dot: "bg-orange-300" },
-  needs_context: { label: "Needs context", dot: "bg-sky-300" },
-  unresolved: { label: "Unresolved", dot: "bg-zinc-400" },
-  opinion: { label: "Opinion", dot: "bg-violet-300" },
+  unsupported: { label: "Unsupported", dot: "bg-amber-300" },
+  needs_context: { label: "Needs context", dot: "bg-amber-300" },
+  unresolved: { label: "Unresolved", dot: "bg-amber-300" },
+  opinion: { label: "Opinion", dot: "bg-zinc-400" },
 };
 
 type FindingsPreviewProps = {
