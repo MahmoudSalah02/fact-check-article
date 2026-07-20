@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -176,8 +176,14 @@ describe("F1 PulseCheck experience", () => {
     expect(screen.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
     expect(screen.getByRole("button", { name: "New check" })).toBeVisible();
 
-    const findings = screen.getByRole("list", { name: "Findings" });
-    expect(within(findings).getAllByRole("listitem")).toHaveLength(9);
+    expect(
+      screen.getByRole("region", { name: "Checked article" }),
+    ).toBeVisible();
+    expect(
+      screen.getAllByRole("button", {
+        name: /^(Verified|Outdated|Contradicted|Unsupported|Needs context|Unresolved|Opinion):/,
+      }),
+    ).toHaveLength(9);
   });
 
   it("shows the honest fixture error for a non-demo article and resets via New check", async () => {
