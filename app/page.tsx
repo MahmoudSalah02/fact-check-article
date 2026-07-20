@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import demoExpected from "@/fixtures/demo-expected.json";
-import { M1FixtureRunner } from "@/components/m1-fixture-runner";
+import { PulseCheckApp } from "@/components/pulsecheck-app";
 import { readServerConfig } from "@/lib/server/config";
 
 export default async function Home() {
@@ -13,7 +13,7 @@ export default async function Home() {
   );
 
   return (
-    <M1FixtureRunner
+    <PulseCheckApp
       demoArticle={demoArticle.trim()}
       demoExpected={demoExpected}
       backend={config.DATA_BACKEND}

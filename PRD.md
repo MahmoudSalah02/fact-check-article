@@ -28,6 +28,8 @@ The shell contains **ChatGPT**, **Codex**, and **PulseCheck** navigation. Only P
 
 ### Visual direction
 
+> **Status update (July 19, 2026):** the shipped F1 direction supersedes the palette bullets below. PulseCheck now renders inside a full ChatGPT-native dark shell (`#0d0d0d`, system font stack): a left sidebar (ChatGPT wordmark, New chat, PulseCheck active, Library/Projects/Scheduled/Plugins, Recents, user chip), a centered composer-first home ("What still holds up today?"), and a results layout that morphs into a Scheduled-style feature page. The Codex top-nav entry is gone. Everything else in this section — the five states, margin dots, and evidence panel — remains the binding spec for F3, restyled to the dark tokens.
+
 - OpenAI-inspired black, white, and warm-gray interface
 - Minimal typography, thin borders, generous whitespace
 - No chat transcript, dashboard, gradients, charts, or decorative motion
@@ -533,6 +535,22 @@ Keep tests organized by behavior rather than mirroring every source file. Small 
 
 ## 10. Two-developer delivery roadmap
 
+### Delivery status — updated July 19, 2026
+
+| Ticket | Status | Where |
+| --- | --- | --- |
+| M1 — skeleton, contracts, fakes, CI | ✅ Merged | PR #1 → `main` |
+| M2 — Supabase, anonymous auth, RLS | ✅ Merged | PR #11 → `main` (squash) |
+| F1 — product shell and article input | ✅ Code-complete, CI green | PR #12 (`f1-skeleton`), awaiting review/merge |
+| F2 — exact-span edit engine | 🔜 **Fadi starts next**, branch from `main` after PR #12 merges | — |
+| M3 — run API and OpenAI lifecycle | 🔜 Mahmoud starts next (gate M2 ✓) | — |
+| F3, F4, M4, F5, M5 | Pending, order unchanged | — |
+
+**Scope notes recorded at merge time:**
+
+- **M2 delivered** the migration (`documents`, `analysis_runs`, `findings`, `sources`, `edit_decisions` with RLS, immutable original text, `SECURITY DEFINER` RPCs), the three Supabase clients, generated types, anonymous auth, the decision endpoint, 15 pgTAP security tests, and a durable Playwright spec. Deviations from the plan below: the repository-adapter classes were replaced by a function-based persistence layer (`lib/supabase/persistence.ts`) — the pgTAP suite plus the durable E2E cover what the "repository contract suite against Supabase" would have; `webhook_events` and quota enforcement moved to M3; identity linking (anonymous → email) is deferred and not demo-blocking; seeds are intentionally empty (the fixture enters through the authenticated HTTP path). `pnpm build` runs webpack, not Turbopack, due to an upstream Turbopack + Zod v4 bug (see README).
+- **F1 grew beyond its original scope.** It shipped the ChatGPT-native shell and a morphing two-state experience (composer home → findings feature page), and it already integrates the M2 durable backend: `HttpRunClient`, anonymous session bootstrap, and `?run=` restore after refresh (work originally sequenced in F5). The component landscape changed: `article-editor.tsx` was replaced by `article-composer.tsx`, `pulsecheck-app.tsx` owns the state machine and both layouts, and `findings-preview.tsx` renders a provisional findings list that F3 replaces.
+
 ### Before M1 starts: 15-minute preflight
 
 This is the only setup gate before coding. Do not block M1 on live Supabase or OpenAI credentials because its default path uses fakes.
@@ -583,7 +601,26 @@ export function applyFindingDecisions(/* typed arguments */) {
 
 Use one useful comment per responsibility, not a TODO on every line. When a ticket is completed, its TODO comments must be removed in that ticket's pull request. Check this with `rg 'TODO\(F2\)'` or the corresponding ticket ID during review; do not build a custom ticket-state system into CI.
 
+### Working agreement for AI-assisted tickets
+
+Both developers implement with AI models and review each other's PRs. These rules keep that fast and safe, and every remaining ticket below carries explicit **Preconditions** and **Postconditions** so "done" is mechanical, not a judgment call.
+
+1. One ticket, one branch, always created from the latest `main`:
+   `git checkout main && git pull && git checkout -b <ticket-branch>`.
+2. Give the model the full ticket section — preconditions through postconditions — as its spec. The ticket text is the source of truth, not the model's assumptions. If the model proposes work outside the ticket's file list, reject it.
+3. Ownership is enforced at the diff level. An F-ticket must not change `lib/contracts/`, `lib/server/`, `lib/supabase/`, `app/api/`, or `supabase/`; an M-ticket must not change `components/`, `lib/domain/`, or `lib/analysis/`. If a postcondition seems impossible without crossing that line, stop and flag it on the PR — do not work around it.
+4. Before every push, run the full local gate and paste its tail into the PR description:
+
+   ```bash
+   pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e
+   ```
+
+5. Remove the ticket's `TODO(...)` markers in the same PR; `rg "TODO\(F2\)"` (or the ticket ID) must return nothing at review time.
+6. Never commit secrets; `.env.local` stays untracked. Fake/fixture mode must keep working with zero configuration after every ticket.
+
 ### M1 — Mahmoud: complete skeleton, contracts, fakes, and CI
+
+> ✅ **Completed and merged** (PR #1). All gates below were met; contracts, fixture provider, fake adapters, and CI are live on `main`.
 
 **Start gate:** This is the first ticket. No other implementation ticket starts until M1 is merged.
 
@@ -614,6 +651,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 
 ### F1 — Fadi: product shell and article input
 
+> ✅ **Code-complete on PR #12** (`f1-skeleton`, CI green, mergeable). Delivered beyond this spec: the ChatGPT-native dark shell, the morphing composer-home → findings-page experience, and early M2 integration (anonymous auth, durable `?run=` restore — pulled forward from F5). Component map for later tickets: `product-shell.tsx` (sidebar + frame), `article-composer.tsx` (input pill, exports `MAX_ARTICLE_LENGTH`), `pulsecheck-app.tsx` (state machine + both layouts), `findings-preview.tsx` (provisional list that F3 replaces).
+
 **Start gate:** M1 is merged. Branch from the latest `main`.
 
 **Implement:**
@@ -636,6 +675,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 **Unlocks:** F3 after F2 also merges. F1 does not wait for M2.
 
 ### M2 — Mahmoud: Supabase, anonymous auth, and row isolation
+
+> ✅ **Completed and merged** (PR #11). Verified: migration applies from zero (`pnpm supabase db reset`), 15 pgTAP RLS/security tests pass, and the durable E2E proves refresh-survival plus cross-user isolation through the real app. See the delivery-status scope notes for the recorded deviations (function-based persistence layer instead of repository classes; `webhook_events`, quota, and identity linking deferred; webpack build workaround).
 
 **Start gate:** M1 is merged. This runs in parallel with F1 and then F2.
 
@@ -666,7 +707,25 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 
 ### F2 — Fadi: exact-span edit engine
 
+> 🔜 **This is Fadi's next ticket.** Branch from `main` once PR #12 (F1) merges. Scope below is unchanged — F2 is pure domain code in `lib/domain/` (`resolve-spans.ts`, `derive-updated-text.ts` stubs exist from M1) with no UI, database, or network dependency. Where it will plug in: F3 consumes your render segments inside the completed view of `pulsecheck-app.tsx`, replacing today's plain-text article block.
+
 **Start gate:** M1 is merged. Fadi should start this after merging F1 to avoid carrying two personal branches.
+
+**Preconditions (verify every box before writing code):**
+
+- [ ] PR #12 (F1) is merged and your branch is created from the latest `main`.
+- [ ] `pnpm install --frozen-lockfile` then the full local gate passes untouched.
+- [ ] The stubs exist and currently throw: `lib/domain/resolve-spans.ts` (`resolveFindingSpans(articleText, findings, checkedAt): Finding[]`) and `lib/domain/derive-updated-text.ts` (`deriveUpdatedText(originalText, findings, decisions): string`). Keep these exact exported signatures — `app` code and F3 will import them.
+- [ ] You have read `lib/contracts/finding.ts` (the `AnalysisFinding` vs `Finding` split and the offset invariant `endOffset === startOffset + sourceText.length`) and `fixtures/demo-expected.json` (nine findings with `prefixText`/`suffixText` anchors).
+
+**Deliverables by file (touch nothing outside this list plus `tests/domain/`):**
+
+| File | What to build |
+| --- | --- |
+| `lib/domain/resolve-spans.ts` | Fill in `resolveFindingSpans`. For each `AnalysisFinding`: find every occurrence of `sourceText` in `articleText`; if more than one, disambiguate with `prefixText`/`suffixText`; exactly one match must survive. Produce `startOffset`/`endOffset` in UTF-16 code units, attach `checkedAt`, validate each record with `FindingSchema.parse`, and return them sorted by `startOffset`. Reject (throw a descriptive `Error`) on: quote not found, still-ambiguous quote, overlapping spans, duplicate finding IDs. |
+| `lib/domain/derive-updated-text.ts` | Fill in `deriveUpdatedText`. Apply the `replacement` of every finding whose latest decision (by `decidedAt`) is `accepted`; apply right-to-left so earlier offsets stay valid. `rejected`, `restored`, and undecided findings contribute their original text. Findings with `replacement: null` never change text regardless of decision. Never mutate inputs. |
+| `lib/domain/render-segments.ts` (new) | The bridge F3 consumes. Export `type RenderSegment = { kind: "unchanged"; text: string } \| { kind: "finding"; text: string; finding: Finding }` and `toRenderSegments(originalText, findings): RenderSegment[]`. Invariant: concatenating every `segment.text` in order reproduces `originalText` exactly. |
+| `tests/domain/*.test.ts` (new directory) | The test suites below. Vitest already picks up `tests/**/*.test.ts`; no config change needed. |
 
 **Implement:**
 
@@ -684,6 +743,15 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 - Cases for surrogate pairs/emoji, combining characters, repeated phrases, anchor disambiguation, adjacent edits, nested/overlapping spans, zero-length spans, bad quotes, and findings returned out of order.
 - Round-trip test proving reject/restore recreates the exact original article.
 
+**Postconditions (done means every box is true):**
+
+- [ ] All nine `fixtures/demo-expected.json` findings resolve to unique, non-overlapping spans, including the repeated-phrase cases that need anchors.
+- [ ] Round-trip invariant: with every finding rejected (or restored after accept), `deriveUpdatedText` returns a string strictly equal (`===`) to the original article — every character, all whitespace and Unicode included. This is the surgical-edit guarantee the whole product stands on.
+- [ ] Segment invariant: `toRenderSegments(...).map(s => s.text).join("") === originalText` for the fixture and for adversarial inputs.
+- [ ] Tests cover: surrogate pairs/emoji, combining characters, repeated phrases disambiguated by anchors, adjacent edits, overlap rejection, zero-length and out-of-bounds spans, duplicate IDs, findings supplied out of order, and quotes that do not exist.
+- [ ] `lib/domain/` imports nothing from React, Next.js, Supabase, or the network — `grep -rn "from \"react\|next\|@supabase" lib/domain/` returns nothing.
+- [ ] `rg "TODO\(F2\)"` returns nothing; the full local gate passes; no diff outside `lib/domain/` and `tests/domain/`.
+
 **Merge gate:** Pure domain tests pass with no browser, database, or network dependency; the fixture renders deterministically; Mahmoud approves the offset invariants.
 
 **Unlocks:** F3 and F4.
@@ -691,6 +759,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 ### M3 — Mahmoud: run API and durable OpenAI lifecycle
 
 **Start gate:** M2 is merged. Shared contracts from M1 remain unchanged unless both developers approve a revision.
+
+**Preconditions:** M2 merged ✓ (this can start now, in parallel with F2); OpenAI project verified for Responses, web search, background mode, and webhooks; keys stay server-side. Inherited M2 placeholders this ticket must replace: `POST /api/runs` currently accepts only the prepared demo article (422 otherwise) and completes synchronously with fixture findings — M3 makes it a real `queued → in_progress → completed|failed` lifecycle; the `webhook_events` table and quota RPC deferred from M2 land here.
 
 **Implement:**
 
@@ -709,13 +779,34 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 - State-machine tests for success, submission failure, model failure, invalid structured output, uncited sources, ambiguous spans, duplicate webhooks, and missed-webhook reconciliation.
 - Transaction rollback test proving partial findings are never displayed.
 
+**Postconditions:** fixture mode remains the CI default and the fake path stays zero-config; the M2 pgTAP suite and durable E2E still pass; duplicate webhooks and repeated GETs are provably idempotent; a run whose submission fails is marked `failed` with a safe error code and never leaks partial findings; `rg "TODO\(M3\)"` is empty and the full local gate passes.
+
 **Merge gate:** Routes pass against fake OpenAI in CI, one opt-in Preview run succeeds with real OpenAI, webhook signatures and idempotency are verified, and Fadi can retrieve the result using only `RunClient`.
 
 **Unlocks:** M4 and the backend half of F5.
 
 ### F3 — Fadi: inline findings and evidence experience
 
+> **Adjusted for the shipped F1 (July 19, 2026):** build this inside the completed view of `pulsecheck-app.tsx` — replace the plain scrolling article block with F2's segment rendering (strikethrough/green edits, margin dots) and replace `findings-preview.tsx` with the real inline experience plus the right-side evidence panel. Style to the dark ChatGPT tokens (`#0d0d0d` background, `#2f2f2f` surfaces, hairline `white/5–10` borders, white pill primary actions — see `product-shell.tsx` and `article-composer.tsx` for the working vocabulary). The filter chips (All/Facts/Forecasts/Opinions) in the completed header are currently decorative — wiring them to actual finding filtering is fair game in F3. The decision endpoint (`PATCH /api/findings/:id/decision`) is live from M2 for persisting accept/reject/restore in supabase mode; in fake mode keep decisions client-side.
+
 **Start gate:** F1 and F2 are both merged. M3 is not required; continue using fake data.
+
+**Preconditions (verify every box before writing code):**
+
+- [ ] F2 is merged: `resolveFindingSpans`, `deriveUpdatedText`, and `toRenderSegments` exist with passing domain tests. Your branch is created from the latest `main`.
+- [ ] You can run the app in fake mode (`pnpm dev`, zero config) and reach the completed view with 9 findings.
+- [ ] You have read the § 2 spec (states, margin-dot table, evidence panel contents) and the F1 component map: the completed view lives in `components/pulsecheck-app.tsx`; `components/finding-dot.tsx` and `components/evidence-panel.tsx` are empty stubs reserved for you; `components/findings-preview.tsx` is the provisional list you will replace.
+
+**Deliverables by file:**
+
+| File | What to build |
+| --- | --- |
+| `components/finding-dot.tsx` | The margin dot. Props: the `Finding`, selected state, and an `onSelect` callback. Verdict → color per the § 2 table, but never color alone: `aria-label` like `"Outdated: Jennifer Granholm is the U.S. secretary of energy"`, keyboard focusable, visible focus ring, click/Enter opens the evidence panel. |
+| `components/evidence-panel.tsx` | The right-side panel for the selected finding: verdict + confidence, one-sentence explanation, proposed correction (when present), clickable sources (`target="_blank"` + `rel="noopener noreferrer"`, publisher and date), checked date, Accept/Reject (only when a replacement exists) and Restore, plus next/previous finding navigation. `Forecast · <status>` label for forecast claims. |
+| `components/article-view.tsx` (new, or inline in `pulsecheck-app.tsx`) | Render `toRenderSegments(...)`: unchanged segments as plain text; finding segments with verdict styling — accepted replacements show original as red strikethrough plus the replacement in muted green; margin dots aligned to their spans. An **Original / Updated** toggle backed by `deriveUpdatedText`. |
+| `components/pulsecheck-app.tsx` | Wire it together in the completed view: replace the plain scrolling article block and `findings-preview.tsx` with the components above. Hold decisions in client state (e.g. `Map<findingId, "accepted" \| "rejected" \| "restored">`); in supabase mode also persist via `PATCH /api/findings/:id/decision` (live since M2 — send the bearer token like `HttpRunClient` does). Optionally wire the currently decorative All/Facts/Forecasts/Opinions chips to real filtering. |
+| `components/findings-preview.tsx` | Delete it (and its usages) once replaced. |
+| `tests/component/`, `tests/e2e/` | The suites below. |
 
 **Implement:**
 
@@ -734,6 +825,16 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 - Accessibility checks for focus order, labels, contrast, and keyboard use.
 - Playwright demo using all nine fixture findings.
 
+**Postconditions (done means every box is true):**
+
+- [ ] The full fixture journey works in fake mode with zero config: load demo → check → see the article with 9 dots → open each finding → accept/reject/restore → toggle Original/Updated — and the Updated text matches `deriveUpdatedText` exactly.
+- [ ] Accepting or rejecting one finding never changes any character outside that finding's span (assert with a DOM text comparison in tests).
+- [ ] Verified/unsupported/opinion/low-confidence findings are visually distinct from corrections and never rendered as strikethrough "lies."
+- [ ] Keyboard-only journey passes: tab to a dot, open the panel, decide, move next/previous, close. Every interactive element has an accessible name.
+- [ ] Styling uses the dark ChatGPT tokens from F1 (`#0d0d0d` background, `#2f2f2f` surfaces, hairline `white/5–10` borders, white pill primaries) — no new color system.
+- [ ] The supabase durable path still works: after deciding in supabase mode, a refresh restores the run (decisions persisted via the M2 endpoint).
+- [ ] `rg "TODO\(F3\)"` returns nothing; the full local gate passes; diff confined to `components/`, `tests/`, and (if needed) `app/page.tsx`.
+
 **Merge gate:** The entire demo is usable with fakes, editing never changes unselected text, sources are clickable, and the other developer can complete the journey without instructions.
 
 **Unlocks:** The UI half of F5.
@@ -741,6 +842,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 ### F4 — Fadi: fact-checking business logic and evaluations
 
 **Start gate:** F2 is merged. M3 is not required because this implements the existing `AnalysisProvider` interface.
+
+**Preconditions:** F2 merged; branch from latest `main`; read `lib/analysis/provider.ts` (the `AnalysisProvider` interface you implement), `lib/analysis/prompt.ts` (the baseline you replace), and `lib/contracts/finding.ts` (`AnalysisOutputSchema` — quotes plus anchors, never numeric offsets). Work stays inside `lib/analysis/` and `tests/` — the OpenAI transport itself (`lib/server/openai/`) is Mahmoud's M3.
 
 **Implement:**
 
@@ -759,6 +862,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 - At least one evaluation case for every verdict.
 - Cases for current officeholders, changed statistics, revised forecasts, absolute language, unsupported precision, opinion, and internal contradiction.
 - Assertions for source/citation presence, uniquely resolvable quotes, minimal replacement, confidence policy, forecast-state separation, and no-change behavior for verified claims.
+
+**Postconditions:** every verdict has at least one recorded evaluation case; the nine-finding fixture passes its invariants unchanged; malformed, uncited, or ambiguous model output is rejected by the schema/resolver rather than rendered; CI stays deterministic (recorded fixtures only, live evals opt-in); `rg "TODO\(F4\)"` is empty and the full local gate passes.
 
 **Merge gate:** The prepared fixture passes its required invariants, malformed or uncited output is rejected safely, live evaluation results are reviewed by both developers, and the provider still satisfies M1's contract suite.
 
@@ -784,13 +889,19 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 - Preview smoke test after migrations and deploy.
 - Alert test or documented alert simulation for a stuck run.
 
+**Postconditions:** separate non-production and production Supabase projects are wired to Preview and Production; no secret or article text appears in any log or client bundle; quotas and deletion verified against a deployed environment, not just locally; `rg "TODO\(M4\)"` is empty.
+
 **Merge gate:** A preview deployment passes smoke tests, secrets remain server-only, logs are clean, quotas and deletion work, and rollback instructions have been dry-run where safe.
 
 **Unlocks:** M5 after F5 is also merged. It does not block F5's Preview integration work.
 
 ### F5 — Fadi: real integration and complete judge journey
 
+> **Partially pulled forward into F1 (July 19, 2026):** the UI already uses `HttpRunClient` in supabase mode, bootstraps an anonymous session, and restores a completed run from `?run=` after refresh. What remains for F5 is the real-API half: polling an in-progress M3 run with visibility-aware backoff, the quota/validation/research-failure/timeout error taxonomy in plain language, and the full Preview judge journey.
+
 **Start gate:** M3, F3, and F4 are merged. M4 may continue in parallel because F5 needs the real Preview API, not completed production hardening.
+
+**Preconditions:** M3, F3, F4 merged; a Preview deployment with supabase mode configured exists; you can create one real run against Preview (coordinate the opt-in OpenAI budget with Mahmoud before looping tests against it).
 
 **Implement:**
 
@@ -808,6 +919,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 - Playwright recovery cases for polling fallback and terminal error display.
 - Preview demo checklist using the prepared article; repeat it against Production during M5.
 
+**Postconditions:** an in-progress run polls with visibility-aware backoff and survives refresh (the completed-run restore already exists from F1 — extend it, don't rebuild it); quota, validation, research-failure, timeout, and retry states each render a distinct plain-language message; fake mode still works with zero config; `rg "TODO\(F5\)"` is empty and the full local gate passes.
+
 **Merge gate:** The Preview judge journey passes twice from a clean browser, refresh does not lose the run, fake-mode tests remain deterministic, and both developers approve the integration preview.
 
 **Unlocks:** M5 after M4 is also merged.
@@ -824,6 +937,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 - Inspect the evidence for every prepared-demo finding; do not rely only on the model's score.
 - Remove or resolve every remaining `TODO(M1)` through `TODO(F5)` marker.
 - Freeze the demo fixture, tag the release, and record the known limitations.
+
+**Postconditions:** `rg "TODO\("` across the repository returns nothing release-blocking; the pitch can be demoed twice in a row from a clean browser in both fixture mode and real mode; the demo fixture is frozen and the release is tagged.
 
 **Merge/release gate:** CI and production smoke tests pass, no release-blocking TODO remains, the demo has a fallback fixture mode, and both developers sign off on the exact pitch flow.
 
