@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import demoExpected from "@/fixtures/demo-expected.json";
+import { DurablePulseCheckApp } from "@/components/durable-pulsecheck-app";
 import { PulseCheckApp } from "@/components/pulsecheck-app";
 import { readServerConfig } from "@/lib/server/config";
 
@@ -12,11 +13,14 @@ export default async function Home() {
     "utf8",
   );
 
-  return (
-    <PulseCheckApp
-      demoArticle={demoArticle.trim()}
-      demoExpected={demoExpected}
-      backend={config.DATA_BACKEND}
-    />
+  const pulseCheckProps = {
+    demoArticle: demoArticle.trim(),
+    demoExpected,
+  };
+
+  return config.DATA_BACKEND === "supabase" ? (
+    <DurablePulseCheckApp {...pulseCheckProps} />
+  ) : (
+    <PulseCheckApp {...pulseCheckProps} />
   );
 }

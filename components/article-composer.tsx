@@ -10,6 +10,7 @@ type ArticleComposerProps = {
   onArticleChange: (article: string) => void;
   onLoadDemo: () => void;
   onCheckArticle: () => void;
+  onReset: () => void;
 };
 
 export function ArticleComposer({
@@ -18,18 +19,19 @@ export function ArticleComposer({
   onArticleChange,
   onLoadDemo,
   onCheckArticle,
+  onReset,
 }: ArticleComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isOverLimit = article.length > MAX_ARTICLE_LENGTH;
   const canCheck = !isChecking && article.length > 0 && !isOverLimit;
 
-  // Grow with the pasted article like the ChatGPT composer: one quiet line
-  // when empty, expanding up to a cap before scrolling internally.
+  // Keep the article as the primary surface and grow until the editor reaches
+  // a comfortable reading cap, then scroll within it.
   useEffect(() => {
     const element = textareaRef.current;
     if (!element) return;
     if (article.length === 0) {
-      element.style.height = "";
+      element.style.height = "160px";
       return;
     }
     element.style.height = "auto";
@@ -39,29 +41,8 @@ export function ArticleComposer({
   }, [article]);
 
   return (
-    <div className="rounded-[28px] bg-[#2b2b2b] px-3 py-2.5 ring-1 ring-white/5 transition focus-within:ring-white/15">
-      <div className="flex items-end gap-2">
-        <button
-          type="button"
-          onClick={onLoadDemo}
-          disabled={isChecking}
-          aria-label="Load demo article"
-          title="Load demo article"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#b4b4b4] outline-none transition hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            className="h-5 w-5"
-          >
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        </button>
-
+    <div className="rounded-2xl border border-white/10 bg-[#1b1b1b] p-3 focus-within:border-white/25">
+      <div>
         <label htmlFor="article" className="sr-only">
           Article text
         </label>
@@ -76,42 +57,52 @@ export function ArticleComposer({
           aria-invalid={isOverLimit}
           aria-describedby={isOverLimit ? "article-limit-error" : undefined}
           placeholder="Paste an article to check…"
-          className="max-h-80 min-h-9 flex-1 resize-none self-center overflow-y-auto bg-transparent py-1.5 text-[15px] leading-6 text-[#ececec] outline-none placeholder:text-[#8e8ea0] read-only:cursor-default"
+          className="max-h-80 min-h-40 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-[15px] leading-7 text-[#ececec] outline-none placeholder:text-[#8e8ea0] read-only:cursor-default"
         />
 
-        <div className="flex shrink-0 items-center gap-2.5 self-end pb-0.5">
-          {article.length > 0 ? (
-            <span
-              aria-live="polite"
-              className={`text-xs tabular-nums ${
-                isOverLimit ? "font-medium text-red-400" : "text-[#8e8ea0]"
-              }`}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onLoadDemo}
+              disabled={isChecking}
+              className="rounded-lg px-3 py-2 text-sm font-medium text-[#d7d7d7] outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {article.length.toLocaleString()} /{" "}
-              {MAX_ARTICLE_LENGTH.toLocaleString()}
-            </span>
-          ) : null}
-          <button
-            type="button"
-            onClick={onCheckArticle}
-            disabled={!canCheck}
-            aria-label="Check article"
-            title="Check article"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#0d0d0d] outline-none transition hover:bg-[#ececec] focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:bg-white/15 disabled:text-white/40"
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2.25}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5"
+              Load demo article
+            </button>
+            {article.length > 0 ? (
+              <button
+                type="button"
+                onClick={onReset}
+                disabled={isChecking}
+                className="rounded-lg px-3 py-2 text-sm text-[#9b9b9b] outline-none hover:bg-white/10 hover:text-[#ececec] focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Clear article
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {article.length > 0 ? (
+              <span
+                aria-live="polite"
+                className={`text-xs tabular-nums ${
+                  isOverLimit ? "font-medium text-red-400" : "text-[#8e8ea0]"
+                }`}
+              >
+                {article.length.toLocaleString()} /{" "}
+                {MAX_ARTICLE_LENGTH.toLocaleString()}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={onCheckArticle}
+              disabled={!canCheck}
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#0d0d0d] outline-none hover:bg-[#ececec] focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:bg-white/15 disabled:text-white/40"
             >
-              <path d="M12 19V5m0 0-6 6m6-6 6 6" />
-            </svg>
-          </button>
+              Check article
+            </button>
+          </div>
         </div>
       </div>
 

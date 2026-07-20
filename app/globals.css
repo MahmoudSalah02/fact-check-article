@@ -45,36 +45,3 @@ textarea {
 *::-webkit-scrollbar-track {
   background: transparent;
 }
-
-/* ChatGPT-style "thinking" shimmer for in-flight status text. */
-@keyframes text-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-.shimmer-text {
-  background: linear-gradient(90deg, #8e8ea0 30%, #ffffff 50%, #8e8ea0 70%);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: text-shimmer 2.2s linear infinite;
-}
-
-/* Soft entrance for view transitions (home -> results). */
-@keyframes rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.rise-in {
-  animation: rise-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
