@@ -43,10 +43,15 @@ describe("F1 PulseCheck experience", () => {
   it("renders the composer home inside the ChatGPT shell", () => {
     renderPulseCheck();
 
+    expect(
+      screen.getByRole("complementary", { name: "Product sidebar" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "PulseCheck" })).toHaveAttribute(
       "aria-current",
       "page",
     );
+    expect(screen.getByText("New chat")).toBeVisible();
+    expect(screen.getByText("Recents")).toBeVisible();
     expect(screen.getByText("ChatGPT")).toBeVisible();
     expect(screen.getByText("Codex")).toBeVisible();
     expect(screen.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
