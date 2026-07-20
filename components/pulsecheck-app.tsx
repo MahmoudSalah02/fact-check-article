@@ -6,10 +6,21 @@ import {
   ArticleComposer,
   MAX_ARTICLE_LENGTH,
 } from "@/components/article-composer";
-import { FindingsPreview } from "@/components/findings-preview";
+import { ArticleView } from "@/components/article-view";
+import { EvidencePanel } from "@/components/evidence-panel";
 import { ProductShell } from "@/components/product-shell";
 import { createFixtureRunClient } from "@/lib/client/create-fixture-run-client";
-import type { RunClient, RunView } from "@/lib/contracts";
+import {
+  SetDecisionResultSchema,
+  type EditDecision,
+  type Finding,
+  type RunClient,
+  type RunView,
+} from "@/lib/contracts";
+import {
+  createBrowserSupabaseClient,
+  getAnonymousAccessToken,
+} from "@/lib/supabase/browser";
 
 type PulseCheckAppProps = {
   demoArticle: string;
@@ -21,6 +32,14 @@ type PulseCheckAppProps = {
 };
 
 type AppStatus = "empty" | "ready" | "checking" | "completed" | "error";
+type FindingFilter = "all" | Finding["claimType"];
+
+const FINDING_FILTERS: Array<{ id: FindingFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "fact", label: "Facts" },
+  { id: "forecast", label: "Forecasts" },
+  { id: "opinion", label: "Opinions" },
+];
 
 function getErrorMessage(error: unknown) {
   if (
@@ -46,6 +65,45 @@ function getRestoreErrorMessage(error: unknown) {
   return "We couldn't load that saved analysis.";
 }
 
+async function loadPersistedDecisions(
+  restoredFindings: Finding[],
+): Promise<EditDecision[]> {
+  if (restoredFindings.length === 0) return [];
+  const client = createBrowserSupabaseClient();
+  const { data, error } = await client
+    .from("edit_decisions")
+    .select("finding_id, decision, decided_at")
+    .in(
+      "finding_id",
+      restoredFindings.map(({ id }) => id),
+    );
+  if (error) throw error;
+  return data.map((row) =>
+    SetDecisionResultSchema.parse({
+      findingId: row.finding_id,
+      decision: row.decision,
+      decidedAt: new Date(row.decided_at).toISOString(),
+    }),
+  );
+}
+
+function latestDecisionForFinding(
+  findingId: string,
+  decisions: EditDecision[],
+) {
+  let latest: EditDecision | undefined;
+  for (const decision of decisions) {
+    if (
+      decision.findingId === findingId &&
+      (!latest ||
+        Date.parse(decision.decidedAt) >= Date.parse(latest.decidedAt))
+    ) {
+      latest = decision;
+    }
+  }
+  return latest?.decision ?? null;
+}
+
 export function PulseCheckApp({
   demoArticle,
   demoExpected,
@@ -58,6 +116,13 @@ export function PulseCheckApp({
   const [runView, setRunView] = useState<RunView | null>(null);
   const [status, setStatus] = useState<AppStatus>("empty");
   const [error, setError] = useState<string | null>(null);
+  const [decisions, setDecisions] = useState<EditDecision[]>([]);
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(
+    null,
+  );
+  const [decisionError, setDecisionError] = useState<string | null>(null);
+  const [savingFindingId, setSavingFindingId] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FindingFilter>("all");
   const fixtureRunClient = useMemo(
     () => createFixtureRunClient(demoArticle, demoExpected),
     [demoArticle, demoExpected],
@@ -65,18 +130,26 @@ export function PulseCheckApp({
 
   const runClient =
     providedRunClient === undefined ? fixtureRunClient : providedRunClient;
+  const usesDurableBackend = onRunIdChange !== undefined;
 
   useEffect(() => {
     if (!runClient || !restoreRunId) return;
+    const client = runClient;
+    const runId = restoreRunId;
     let cancelled = false;
 
     async function restoreRun() {
       try {
         setStatus("checking");
-        const restored = await runClient!.getRun(restoreRunId!);
+        const restored = await client.getRun(runId);
+        const restoredDecisions =
+          restored.findings && usesDurableBackend
+            ? await loadPersistedDecisions(restored.findings)
+            : [];
         if (cancelled) return;
         setArticle(restored.document.originalText);
         setRunView(restored);
+        setDecisions(restoredDecisions);
         setStatus("completed");
       } catch (caught) {
         if (cancelled) return;
@@ -89,12 +162,15 @@ export function PulseCheckApp({
     return () => {
       cancelled = true;
     };
-  }, [restoreRunId, runClient]);
+  }, [restoreRunId, runClient, usesDurableBackend]);
 
   function handleArticleChange(nextArticle: string) {
     setArticle(nextArticle);
     setRunView(null);
     setError(null);
+    setDecisions([]);
+    setSelectedFindingId(null);
+    setActiveFilter("all");
     setStatus(nextArticle.length === 0 ? "empty" : "ready");
   }
 
@@ -102,6 +178,9 @@ export function PulseCheckApp({
     setArticle(demoArticle);
     setRunView(null);
     setError(null);
+    setDecisions([]);
+    setSelectedFindingId(null);
+    setActiveFilter("all");
     setStatus("ready");
   }
 
@@ -109,6 +188,10 @@ export function PulseCheckApp({
     setArticle("");
     setRunView(null);
     setError(null);
+    setDecisions([]);
+    setSelectedFindingId(null);
+    setDecisionError(null);
+    setActiveFilter("all");
     setStatus("empty");
     onRunIdChange?.(null);
   }
@@ -133,6 +216,9 @@ export function PulseCheckApp({
       onRunIdChange?.(created.runId);
       const completedRun = await runClient.getRun(created.runId);
       setRunView(completedRun);
+      setDecisions([]);
+      setSelectedFindingId(null);
+      setActiveFilter("all");
       setStatus("completed");
     } catch (caught) {
       setError(getErrorMessage(caught));
@@ -144,21 +230,107 @@ export function PulseCheckApp({
   const currentStatus = startupError ? "error" : status;
   const currentError = startupError ?? error;
   const isCompleted = currentStatus === "completed" && runView !== null;
+  const visibleFindings = findings.filter(
+    (finding) => activeFilter === "all" || finding.claimType === activeFilter,
+  );
+  const visibleFindingIds = new Set(
+    visibleFindings.map((finding) => finding.id),
+  );
+  const selectedFinding =
+    visibleFindings.find(({ id }) => id === selectedFindingId) ?? null;
+  const selectedIndex = selectedFinding
+    ? visibleFindings.findIndex(({ id }) => id === selectedFinding.id)
+    : -1;
+  const selectedDecision = selectedFinding
+    ? latestDecisionForFinding(selectedFinding.id, decisions)
+    : null;
+
+  async function handleDecision(decision: EditDecision["decision"]) {
+    if (!selectedFinding) return;
+    setSavingFindingId(selectedFinding.id);
+    setDecisionError(null);
+
+    try {
+      let savedDecision: EditDecision;
+      if (usesDurableBackend) {
+        const token = await getAnonymousAccessToken();
+        const response = await fetch(
+          `/api/findings/${encodeURIComponent(selectedFinding.id)}/decision`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({ decision }),
+          },
+        );
+        if (!response.ok) throw new Error("Decision request failed");
+        savedDecision = SetDecisionResultSchema.parse(await response.json());
+      } else {
+        savedDecision = {
+          findingId: selectedFinding.id,
+          decision,
+          decidedAt: new Date().toISOString(),
+        };
+      }
+      setDecisions((current) => [...current, savedDecision]);
+    } catch {
+      setDecisionError("We couldn't save this decision. Please try again.");
+    } finally {
+      setSavingFindingId(null);
+    }
+  }
+
+  function selectRelativeFinding(offset: number) {
+    if (visibleFindings.length === 0) return;
+    const nextIndex =
+      (selectedIndex + offset + visibleFindings.length) %
+      visibleFindings.length;
+    setSelectedFindingId(visibleFindings[nextIndex]?.id ?? null);
+    setDecisionError(null);
+  }
+
+  function handleFilterChange(filter: FindingFilter) {
+    setActiveFilter(filter);
+    setDecisionError(null);
+    if (
+      selectedFindingId &&
+      !findings.some(
+        (finding) =>
+          finding.id === selectedFindingId &&
+          (filter === "all" || finding.claimType === filter),
+      )
+    ) {
+      setSelectedFindingId(null);
+    }
+  }
+
+  function closeEvidencePanel() {
+    const findingId = selectedFindingId;
+    setSelectedFindingId(null);
+    setDecisionError(null);
+    if (findingId) {
+      window.setTimeout(() => {
+        document.getElementById(`finding-dot-${findingId}`)?.focus();
+      }, 0);
+    }
+  }
 
   return (
     <ProductShell>
       {isCompleted ? (
         <main className="flex min-h-0 flex-1 flex-col px-5 pt-8 pb-2 sm:px-8">
-          <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+          <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h1 className="text-[22px] font-semibold tracking-tight text-[#f3f3f3]">
                   PulseCheck
                 </h1>
                 <p role="status" className="mt-0.5 text-sm text-[#8e8ea0]">
-                  {findings.length}{" "}
-                  {findings.length === 1 ? "finding" : "findings"} ready to
-                  review.
+                  {activeFilter === "all"
+                    ? `${findings.length} ${findings.length === 1 ? "finding" : "findings"} ready to review.`
+                    : `${visibleFindings.length} of ${findings.length} ${FINDING_FILTERS.find(({ id }) => id === activeFilter)?.label.toLowerCase()} shown.`}
                 </p>
               </div>
               <button
@@ -170,12 +342,81 @@ export function PulseCheckApp({
               </button>
             </div>
 
-            <div className="mt-6 max-h-[26vh] shrink-0 overflow-y-auto border-b border-white/10 pb-5 pr-1 text-[15px] leading-7 whitespace-pre-wrap text-[#c6c6c6]">
-              {runView.document.originalText}
+            <div
+              role="group"
+              aria-label="Filter findings"
+              className="mt-5 flex flex-wrap items-center gap-1.5"
+            >
+              {FINDING_FILTERS.map(({ id, label }) => {
+                const count =
+                  id === "all"
+                    ? findings.length
+                    : findings.filter(({ claimType }) => claimType === id)
+                        .length;
+                return (
+                  <button
+                    type="button"
+                    key={id}
+                    aria-label={`${label}: ${count} ${count === 1 ? "finding" : "findings"}`}
+                    aria-pressed={activeFilter === id}
+                    onClick={() => handleFilterChange(id)}
+                    className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-white/60 ${
+                      activeFilter === id
+                        ? "bg-[#2f2f2f] font-medium text-[#f3f3f3]"
+                        : "text-[#9b9b9b] hover:bg-white/5"
+                    }`}
+                  >
+                    <span>{label}</span>
+                    <span
+                      aria-hidden="true"
+                      className={`text-xs ${
+                        activeFilter === id
+                          ? "text-[#c6c6c6]"
+                          : "text-[#6f6f78]"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-              <FindingsPreview findings={findings} />
+            <div
+              className={`mt-5 grid min-h-0 flex-1 gap-5 ${
+                selectedFinding
+                  ? "lg:grid-cols-[minmax(0,1fr)_340px]"
+                  : "grid-cols-1"
+              }`}
+            >
+              <div className="min-h-0 overflow-y-auto rounded-2xl border border-white/5 bg-[#151515] p-5 sm:p-7">
+                <ArticleView
+                  originalText={runView.document.originalText}
+                  findings={findings}
+                  visibleFindingIds={visibleFindingIds}
+                  decisions={decisions}
+                  selectedFindingId={selectedFindingId}
+                  onSelectFinding={(findingId) => {
+                    setSelectedFindingId(findingId);
+                    setDecisionError(null);
+                  }}
+                />
+              </div>
+
+              {selectedFinding ? (
+                <EvidencePanel
+                  finding={selectedFinding}
+                  decision={selectedDecision}
+                  position={selectedIndex + 1}
+                  total={visibleFindings.length}
+                  isSaving={savingFindingId === selectedFinding.id}
+                  error={decisionError}
+                  onDecision={(decision) => void handleDecision(decision)}
+                  onPrevious={() => selectRelativeFinding(-1)}
+                  onNext={() => selectRelativeFinding(1)}
+                  onClose={closeEvidencePanel}
+                />
+              ) : null}
             </div>
           </div>
         </main>
