@@ -10,7 +10,6 @@ import { ArticleView } from "@/components/article-view";
 import { EvidencePanel } from "@/components/evidence-panel";
 import { ProductShell } from "@/components/product-shell";
 import { createFixtureRunClient } from "@/lib/client/create-fixture-run-client";
-import { HttpRunClient, RunClientError } from "@/lib/client/http-run-client";
 import {
   SetDecisionResultSchema,
   type EditDecision,
@@ -26,8 +25,10 @@ import {
 type PulseCheckAppProps = {
   demoArticle: string;
   demoExpected: unknown;
-  backend?: "fake" | "supabase";
-  runClient?: RunClient;
+  runClient?: RunClient | null;
+  restoreRunId?: string | null;
+  onRunIdChange?: (runId: string | null) => void;
+  startupError?: string | null;
 };
 
 type AppStatus = "empty" | "ready" | "checking" | "completed" | "error";
@@ -52,27 +53,16 @@ function getErrorMessage(error: unknown) {
 }
 
 function getRestoreErrorMessage(error: unknown) {
-  if (error instanceof RunClientError && error.status === 404) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    error.status === 404
+  ) {
     return "We couldn't find that saved analysis.";
   }
 
   return "We couldn't load that saved analysis.";
-}
-
-function readRunParam() {
-  if (typeof window === "undefined") return null;
-  return new URL(window.location.href).searchParams.get("run");
-}
-
-function writeRunParam(runId: string | null) {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  if (runId) {
-    url.searchParams.set("run", runId);
-  } else {
-    url.searchParams.delete("run");
-  }
-  window.history.replaceState(null, "", url);
 }
 
 async function loadPersistedDecisions(
@@ -114,40 +104,18 @@ function latestDecisionForFinding(
   return latest?.decision ?? null;
 }
 
-function SuggestionIcon({ path }: { path: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-[18px] w-[18px] shrink-0"
-    >
-      <path d={path} />
-    </svg>
-  );
-}
-
-const SUGGESTION_ICONS = {
-  bolt: "m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z",
-  news: "M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z",
-  history: "M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
-} as const;
-
 export function PulseCheckApp({
   demoArticle,
   demoExpected,
-  backend = "fake",
   runClient: providedRunClient,
+  restoreRunId = null,
+  onRunIdChange,
+  startupError = null,
 }: PulseCheckAppProps) {
   const [article, setArticle] = useState("");
   const [runView, setRunView] = useState<RunView | null>(null);
   const [status, setStatus] = useState<AppStatus>("empty");
   const [error, setError] = useState<string | null>(null);
-  const [durableClient, setDurableClient] = useState<RunClient | null>(null);
   const [decisions, setDecisions] = useState<EditDecision[]>([]);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(
     null,
@@ -155,41 +123,33 @@ export function PulseCheckApp({
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [savingFindingId, setSavingFindingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FindingFilter>("all");
-
   const fixtureRunClient = useMemo(
     () => createFixtureRunClient(demoArticle, demoExpected),
     [demoArticle, demoExpected],
   );
 
-  const usesDurableBackend = backend === "supabase" && !providedRunClient;
   const runClient =
-    providedRunClient ??
-    (usesDurableBackend ? durableClient : fixtureRunClient);
+    providedRunClient === undefined ? fixtureRunClient : providedRunClient;
+  const usesDurableBackend = onRunIdChange !== undefined;
 
-  // In supabase mode, start an anonymous session and restore any run named in
-  // the URL so a completed analysis survives a refresh. Tests inject their own
-  // client, so this effect never runs under jsdom.
   useEffect(() => {
-    if (!usesDurableBackend) return;
+    if (!runClient || !restoreRunId) return;
+    const client = runClient;
+    const runId = restoreRunId;
     let cancelled = false;
 
-    async function initialize() {
+    async function restoreRun() {
       try {
-        await getAnonymousAccessToken();
-        const client = new HttpRunClient(getAnonymousAccessToken);
-        if (cancelled) return;
-        setDurableClient(client);
-
-        const runId = readRunParam();
-        if (!runId) return;
         setStatus("checking");
         const restored = await client.getRun(runId);
+        const restoredDecisions =
+          restored.findings && usesDurableBackend
+            ? await loadPersistedDecisions(restored.findings)
+            : [];
         if (cancelled) return;
         setArticle(restored.document.originalText);
         setRunView(restored);
-        if (restored.findings) {
-          setDecisions(await loadPersistedDecisions(restored.findings));
-        }
+        setDecisions(restoredDecisions);
         setStatus("completed");
       } catch (caught) {
         if (cancelled) return;
@@ -198,11 +158,11 @@ export function PulseCheckApp({
       }
     }
 
-    void initialize();
+    void restoreRun();
     return () => {
       cancelled = true;
     };
-  }, [usesDurableBackend]);
+  }, [restoreRunId, runClient, usesDurableBackend]);
 
   function handleArticleChange(nextArticle: string) {
     setArticle(nextArticle);
@@ -233,7 +193,7 @@ export function PulseCheckApp({
     setDecisionError(null);
     setActiveFilter("all");
     setStatus("empty");
-    if (usesDurableBackend) writeRunParam(null);
+    onRunIdChange?.(null);
   }
 
   async function handleCheckArticle() {
@@ -253,7 +213,7 @@ export function PulseCheckApp({
 
     try {
       const created = await runClient.createRun({ text: article, title: null });
-      if (usesDurableBackend) writeRunParam(created.runId);
+      onRunIdChange?.(created.runId);
       const completedRun = await runClient.getRun(created.runId);
       setRunView(completedRun);
       setDecisions([]);
@@ -267,7 +227,9 @@ export function PulseCheckApp({
   }
 
   const findings = runView?.findings ?? [];
-  const isCompleted = status === "completed" && runView !== null;
+  const currentStatus = startupError ? "error" : status;
+  const currentError = startupError ?? error;
+  const isCompleted = currentStatus === "completed" && runView !== null;
   const visibleFindings = findings.filter(
     (finding) => activeFilter === "all" || finding.claimType === activeFilter,
   );
@@ -359,7 +321,7 @@ export function PulseCheckApp({
     <ProductShell>
       {isCompleted ? (
         <main className="flex min-h-0 flex-1 flex-col px-5 pt-8 pb-2 sm:px-8">
-          <div className="rise-in mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
+          <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h1 className="text-[22px] font-semibold tracking-tight text-[#f3f3f3]">
@@ -461,17 +423,21 @@ export function PulseCheckApp({
       ) : (
         <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-5">
           <div className="w-full max-w-[720px] pb-16">
-            <h1 className="text-center text-[28px] font-medium tracking-tight text-[#f3f3f3] sm:text-[32px]">
-              What still holds up today?
+            <h1 className="text-center text-[28px] font-semibold tracking-tight text-[#f3f3f3] sm:text-[32px]">
+              PulseCheck
             </h1>
+            <p className="mt-2 text-center text-sm text-[#9b9b9b]">
+              What still holds up today?
+            </p>
 
-            <div className="mt-8">
+            <div className="mt-7">
               <ArticleComposer
                 article={article}
-                isChecking={status === "checking"}
+                isChecking={currentStatus === "checking"}
                 onArticleChange={handleArticleChange}
                 onLoadDemo={handleLoadDemo}
                 onCheckArticle={handleCheckArticle}
+                onReset={handleReset}
               />
             </div>
 
@@ -480,47 +446,25 @@ export function PulseCheckApp({
               or information you are not authorized to process.
             </p>
 
-            {status === "checking" ? (
-              <p
-                role="status"
-                aria-live="polite"
-                className="shimmer-text mt-8 text-center text-[15px]"
-              >
-                Researching and validating claims…
-              </p>
-            ) : null}
-
-            {error ? (
-              <p role="alert" className="mt-8 text-center text-sm text-red-400">
-                {error}
-              </p>
-            ) : null}
-
-            {article.length === 0 && status !== "checking" && !error ? (
-              <div className="mx-auto mt-10 flex max-w-[420px] flex-col">
-                <button
-                  type="button"
-                  onClick={handleLoadDemo}
-                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] text-[#e3e3e3] outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-white/40"
+            {currentStatus === "checking" ? (
+              <div className="mt-8">
+                <div aria-hidden="true" className="h-px bg-white/10">
+                  <div className="h-px w-1/3 bg-[#b4b4b4]" />
+                </div>
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="mt-4 text-center text-[15px] text-[#b4b4b4]"
                 >
-                  <span className="text-[#b4b4b4]">
-                    <SuggestionIcon path={SUGGESTION_ICONS.bolt} />
-                  </span>
-                  Load the demo article
-                </button>
-                <span className="flex cursor-default items-center gap-3 rounded-xl px-3 py-3 text-[15px] text-[#e3e3e3]">
-                  <span className="text-[#b4b4b4]">
-                    <SuggestionIcon path={SUGGESTION_ICONS.news} />
-                  </span>
-                  Verify facts in a news story
-                </span>
-                <span className="flex cursor-default items-center gap-3 rounded-xl px-3 py-3 text-[15px] text-[#e3e3e3]">
-                  <span className="text-[#b4b4b4]">
-                    <SuggestionIcon path={SUGGESTION_ICONS.history} />
-                  </span>
-                  Re-check an aging blog post
-                </span>
+                  Researching and validating claims…
+                </p>
               </div>
+            ) : null}
+
+            {currentError ? (
+              <p role="alert" className="mt-8 text-center text-sm text-red-400">
+                {currentError}
+              </p>
             ) : null}
           </div>
         </main>

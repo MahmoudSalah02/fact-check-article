@@ -5,10 +5,10 @@ test("prepared article travels through the F1 product flow", async ({
 }) => {
   await page.goto("/");
 
-  await expect(
-    page.getByRole("heading", { name: "What still holds up today?" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Load the demo article" }).click();
+  await expect(page.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
+  await expect(page.getByText("What still holds up today?")).toBeVisible();
+  await expect(page.getByText("Codex")).toBeVisible();
+  await page.getByRole("button", { name: "Load demo article" }).click();
   await page.getByRole("button", { name: "Check article" }).click();
 
   await expect(page.getByText("9 findings ready to review.")).toBeVisible();
