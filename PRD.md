@@ -28,6 +28,8 @@ The shell contains **ChatGPT**, **Codex**, and **PulseCheck** navigation. Only P
 
 ### Visual direction
 
+> **Status update (July 19, 2026):** the shipped F1 direction supersedes the palette bullets below. PulseCheck now renders inside a full ChatGPT-native dark shell (`#0d0d0d`, system font stack): a left sidebar (ChatGPT wordmark, New chat, PulseCheck active, Library/Projects/Scheduled/Plugins, Recents, user chip), a centered composer-first home ("What still holds up today?"), and a results layout that morphs into a Scheduled-style feature page. The Codex top-nav entry is gone. Everything else in this section — the five states, margin dots, and evidence panel — remains the binding spec for F3, restyled to the dark tokens.
+
 - OpenAI-inspired black, white, and warm-gray interface
 - Minimal typography, thin borders, generous whitespace
 - No chat transcript, dashboard, gradients, charts, or decorative motion
@@ -533,6 +535,22 @@ Keep tests organized by behavior rather than mirroring every source file. Small 
 
 ## 10. Two-developer delivery roadmap
 
+### Delivery status — updated July 19, 2026
+
+| Ticket | Status | Where |
+| --- | --- | --- |
+| M1 — skeleton, contracts, fakes, CI | ✅ Merged | PR #1 → `main` |
+| M2 — Supabase, anonymous auth, RLS | ✅ Merged | PR #11 → `main` (squash) |
+| F1 — product shell and article input | ✅ Code-complete, CI green | PR #12 (`f1-skeleton`), awaiting review/merge |
+| F2 — exact-span edit engine | 🔜 **Fadi starts next**, branch from `main` after PR #12 merges | — |
+| M3 — run API and OpenAI lifecycle | 🔜 Mahmoud starts next (gate M2 ✓) | — |
+| F3, F4, M4, F5, M5 | Pending, order unchanged | — |
+
+**Scope notes recorded at merge time:**
+
+- **M2 delivered** the migration (`documents`, `analysis_runs`, `findings`, `sources`, `edit_decisions` with RLS, immutable original text, `SECURITY DEFINER` RPCs), the three Supabase clients, generated types, anonymous auth, the decision endpoint, 15 pgTAP security tests, and a durable Playwright spec. Deviations from the plan below: the repository-adapter classes were replaced by a function-based persistence layer (`lib/supabase/persistence.ts`) — the pgTAP suite plus the durable E2E cover what the "repository contract suite against Supabase" would have; `webhook_events` and quota enforcement moved to M3; identity linking (anonymous → email) is deferred and not demo-blocking; seeds are intentionally empty (the fixture enters through the authenticated HTTP path). `pnpm build` runs webpack, not Turbopack, due to an upstream Turbopack + Zod v4 bug (see README).
+- **F1 grew beyond its original scope.** It shipped the ChatGPT-native shell and a morphing two-state experience (composer home → findings feature page), and it already integrates the M2 durable backend: `HttpRunClient`, anonymous session bootstrap, and `?run=` restore after refresh (work originally sequenced in F5). The component landscape changed: `article-editor.tsx` was replaced by `article-composer.tsx`, `pulsecheck-app.tsx` owns the state machine and both layouts, and `findings-preview.tsx` renders a provisional findings list that F3 replaces.
+
 ### Before M1 starts: 15-minute preflight
 
 This is the only setup gate before coding. Do not block M1 on live Supabase or OpenAI credentials because its default path uses fakes.
@@ -585,6 +603,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 
 ### M1 — Mahmoud: complete skeleton, contracts, fakes, and CI
 
+> ✅ **Completed and merged** (PR #1). All gates below were met; contracts, fixture provider, fake adapters, and CI are live on `main`.
+
 **Start gate:** This is the first ticket. No other implementation ticket starts until M1 is merged.
 
 **Create and configure:**
@@ -614,6 +634,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 
 ### F1 — Fadi: product shell and article input
 
+> ✅ **Code-complete on PR #12** (`f1-skeleton`, CI green, mergeable). Delivered beyond this spec: the ChatGPT-native dark shell, the morphing composer-home → findings-page experience, and early M2 integration (anonymous auth, durable `?run=` restore — pulled forward from F5). Component map for later tickets: `product-shell.tsx` (sidebar + frame), `article-composer.tsx` (input pill, exports `MAX_ARTICLE_LENGTH`), `pulsecheck-app.tsx` (state machine + both layouts), `findings-preview.tsx` (provisional list that F3 replaces).
+
 **Start gate:** M1 is merged. Branch from the latest `main`.
 
 **Implement:**
@@ -636,6 +658,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 **Unlocks:** F3 after F2 also merges. F1 does not wait for M2.
 
 ### M2 — Mahmoud: Supabase, anonymous auth, and row isolation
+
+> ✅ **Completed and merged** (PR #11). Verified: migration applies from zero (`pnpm supabase db reset`), 15 pgTAP RLS/security tests pass, and the durable E2E proves refresh-survival plus cross-user isolation through the real app. See the delivery-status scope notes for the recorded deviations (function-based persistence layer instead of repository classes; `webhook_events`, quota, and identity linking deferred; webpack build workaround).
 
 **Start gate:** M1 is merged. This runs in parallel with F1 and then F2.
 
@@ -665,6 +689,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 **Unlocks:** M3.
 
 ### F2 — Fadi: exact-span edit engine
+
+> 🔜 **This is Fadi's next ticket.** Branch from `main` once PR #12 (F1) merges. Scope below is unchanged — F2 is pure domain code in `lib/domain/` (`resolve-spans.ts`, `derive-updated-text.ts` stubs exist from M1) with no UI, database, or network dependency. Where it will plug in: F3 consumes your render segments inside the completed view of `pulsecheck-app.tsx`, replacing today's plain-text article block.
 
 **Start gate:** M1 is merged. Fadi should start this after merging F1 to avoid carrying two personal branches.
 
@@ -714,6 +740,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 **Unlocks:** M4 and the backend half of F5.
 
 ### F3 — Fadi: inline findings and evidence experience
+
+> **Adjusted for the shipped F1 (July 19, 2026):** build this inside the completed view of `pulsecheck-app.tsx` — replace the plain scrolling article block with F2's segment rendering (strikethrough/green edits, margin dots) and replace `findings-preview.tsx` with the real inline experience plus the right-side evidence panel. Style to the dark ChatGPT tokens (`#0d0d0d` background, `#2f2f2f` surfaces, hairline `white/5–10` borders, white pill primary actions — see `product-shell.tsx` and `article-composer.tsx` for the working vocabulary). The filter chips (All/Facts/Forecasts/Opinions) in the completed header are currently decorative — wiring them to actual finding filtering is fair game in F3. The decision endpoint (`PATCH /api/findings/:id/decision`) is live from M2 for persisting accept/reject/restore in supabase mode; in fake mode keep decisions client-side.
 
 **Start gate:** F1 and F2 are both merged. M3 is not required; continue using fake data.
 
@@ -789,6 +817,8 @@ Use one useful comment per responsibility, not a TODO on every line. When a tick
 **Unlocks:** M5 after F5 is also merged. It does not block F5's Preview integration work.
 
 ### F5 — Fadi: real integration and complete judge journey
+
+> **Partially pulled forward into F1 (July 19, 2026):** the UI already uses `HttpRunClient` in supabase mode, bootstraps an anonymous session, and restores a completed run from `?run=` after refresh. What remains for F5 is the real-API half: polling an in-progress M3 run with visibility-aware backoff, the quota/validation/research-failure/timeout error taxonomy in plain language, and the full Preview judge journey.
 
 **Start gate:** M3, F3, and F4 are merged. M4 may continue in parallel because F5 needs the real Preview API, not completed production hardening.
 
