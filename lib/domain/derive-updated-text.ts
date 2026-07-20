@@ -1,23 +1,34 @@
-import type { EditDecision, Finding } from "@/lib/contracts";
+import {
+  EditDecisionSchema,
+  FindingSchema,
+  type EditDecision,
+  type Finding,
+} from "@/lib/contracts";
 
 export function deriveUpdatedText(
   originalText: string,
   findings: Finding[],
   decisions: EditDecision[],
 ): string {
-  const latestDecisions = new Map<string, EditDecision>();
-  for (const decision of decisions) {
+  const validatedFindings = validateFindingSpans(originalText, findings);
+  const latestDecisions = new Map<
+    string,
+    { decision: EditDecision; timestamp: number }
+  >();
+  for (const untrustedDecision of decisions) {
+    const decision = EditDecisionSchema.parse(untrustedDecision);
+    const timestamp = Date.parse(decision.decidedAt);
     const current = latestDecisions.get(decision.findingId);
-    if (!current || decision.decidedAt > current.decidedAt) {
-      latestDecisions.set(decision.findingId, decision);
+    if (!current || timestamp >= current.timestamp) {
+      latestDecisions.set(decision.findingId, { decision, timestamp });
     }
   }
 
-  const accepted = findings
+  const accepted = validatedFindings
     .filter(
       (finding) =>
         finding.replacement !== null &&
-        latestDecisions.get(finding.id)?.decision === "accepted",
+        latestDecisions.get(finding.id)?.decision.decision === "accepted",
     )
     .sort((left, right) => right.startOffset - left.startOffset);
 
@@ -31,6 +42,37 @@ export function deriveUpdatedText(
   }
 
   return updatedText;
+}
+
+function validateFindingSpans(
+  originalText: string,
+  findings: Finding[],
+): Finding[] {
+  const validated = findings.map((finding) => FindingSchema.parse(finding));
+  validated.sort(
+    (left, right) =>
+      left.startOffset - right.startOffset ||
+      left.endOffset - right.endOffset ||
+      left.id.localeCompare(right.id),
+  );
+
+  const ids = new Set<string>();
+  let previous: Finding | undefined;
+  for (const finding of validated) {
+    if (ids.has(finding.id)) {
+      throw new Error(`Duplicate finding ID: ${finding.id}`);
+    }
+    ids.add(finding.id);
+    assertFindingCoversOriginal(originalText, finding);
+    if (previous && finding.startOffset < previous.endOffset) {
+      throw new Error(
+        `Finding spans overlap: "${previous.id}" and "${finding.id}"`,
+      );
+    }
+    previous = finding;
+  }
+
+  return validated;
 }
 
 function assertFindingCoversOriginal(

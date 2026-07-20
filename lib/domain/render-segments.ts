@@ -1,4 +1,4 @@
-import type { Finding } from "@/lib/contracts";
+import { FindingSchema, type Finding } from "@/lib/contracts";
 
 export type RenderSegment =
   | { kind: "unchanged"; text: string }
@@ -15,9 +15,19 @@ export function toRenderSegments(
       left.id.localeCompare(right.id),
   );
   const segments: RenderSegment[] = [];
+  const ids = new Set<string>();
   let cursor = 0;
 
   for (const finding of sortedFindings) {
+    if (!FindingSchema.safeParse(finding).success) {
+      throw new Error(
+        `Finding "${finding.id}" has an invalid or overlapping span`,
+      );
+    }
+    if (ids.has(finding.id)) {
+      throw new Error(`Duplicate finding ID: ${finding.id}`);
+    }
+    ids.add(finding.id);
     if (
       finding.startOffset < cursor ||
       finding.endOffset <= finding.startOffset ||

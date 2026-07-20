@@ -20,6 +20,16 @@ const baseFinding: AnalysisFinding = {
   sources: [],
 };
 
+const fixtureArticle = readFileSync("fixtures/demo-article.txt", "utf8").trim();
+const fixture = JSON.parse(
+  readFileSync("fixtures/demo-expected.json", "utf8"),
+) as { findings: Array<Record<string, unknown>> };
+const fixtureFindings = fixture.findings.map((fixtureFinding) => {
+  const item = { ...fixtureFinding };
+  delete item.checkedAt;
+  return AnalysisFindingSchema.parse(item);
+});
+
 function finding(
   overrides: Partial<AnalysisFinding> &
     Pick<AnalysisFinding, "id" | "sourceText">,
@@ -29,19 +39,9 @@ function finding(
 
 describe("resolveFindingSpans", () => {
   it("resolves all nine fixture findings to their exact text in article order", () => {
-    const article = readFileSync("fixtures/demo-article.txt", "utf8").trimEnd();
-    const fixture = JSON.parse(
-      readFileSync("fixtures/demo-expected.json", "utf8"),
-    ) as { findings: Array<Record<string, unknown>> };
-    const analysisFindings = fixture.findings.map((fixtureFinding) => {
-      const item = { ...fixtureFinding };
-      delete item.checkedAt;
-      return AnalysisFindingSchema.parse(item);
-    });
-
     const resolved = resolveFindingSpans(
-      article,
-      [...analysisFindings].reverse(),
+      fixtureArticle,
+      [...fixtureFindings].reverse(),
       checkedAt,
     );
 
@@ -58,12 +58,29 @@ describe("resolveFindingSpans", () => {
       "biggest-threat",
     ]);
     for (const item of resolved) {
-      expect(article.slice(item.startOffset, item.endOffset)).toBe(
+      expect(fixtureArticle.slice(item.startOffset, item.endOffset)).toBe(
         item.sourceText,
       );
       expect(item.endOffset).toBe(item.startOffset + item.sourceText.length);
       expect(item.checkedAt).toBe(checkedAt);
     }
+  });
+
+  it.each(
+    fixtureFindings.map(
+      (fixtureFinding) => [fixtureFinding.id, fixtureFinding] as const,
+    ),
+  )("resolves demo finding %s independently", (_id, fixtureFinding) => {
+    const [resolved] = resolveFindingSpans(
+      fixtureArticle,
+      [fixtureFinding],
+      checkedAt,
+    );
+
+    expect(resolved?.sourceText).toBe(fixtureFinding.sourceText);
+    expect(
+      fixtureArticle.slice(resolved?.startOffset, resolved?.endOffset),
+    ).toBe(fixtureFinding.sourceText);
   });
 
   it.each([

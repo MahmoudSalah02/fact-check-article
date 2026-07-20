@@ -1,6 +1,12 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
-import type { AnalysisFinding, Finding } from "@/lib/contracts";
+import {
+  AnalysisFindingSchema,
+  type AnalysisFinding,
+  type Finding,
+} from "@/lib/contracts";
 import { toRenderSegments } from "@/lib/domain/render-segments";
 import { resolveFindingSpans } from "@/lib/domain/resolve-spans";
 
@@ -19,6 +25,28 @@ const analysisFinding = (id: string, sourceText: string): AnalysisFinding => ({
 });
 
 describe("toRenderSegments", () => {
+  it("round-trips the complete fixture into nine finding segments", () => {
+    const original = readFileSync("fixtures/demo-article.txt", "utf8").trim();
+    const fixture = JSON.parse(
+      readFileSync("fixtures/demo-expected.json", "utf8"),
+    ) as { findings: Array<Record<string, unknown>> };
+    const analysisFindings = fixture.findings.map((fixtureFinding) => {
+      const item = { ...fixtureFinding };
+      delete item.checkedAt;
+      return AnalysisFindingSchema.parse(item);
+    });
+    const findings = resolveFindingSpans(
+      original,
+      analysisFindings,
+      "2026-07-18",
+    );
+
+    const segments = toRenderSegments(original, findings);
+
+    expect(segments.map(({ text }) => text).join("")).toBe(original);
+    expect(segments.filter(({ kind }) => kind === "finding")).toHaveLength(9);
+  });
+
   it("round-trips exact text and sorts findings without mutating them", () => {
     const original = "  😀 alpha\ne\u0301 beta  ";
     const resolved = resolveFindingSpans(
@@ -94,6 +122,22 @@ describe("toRenderSegments", () => {
     } as Finding;
     expect(() => toRenderSegments("abcdef", [overlapping, base])).toThrow(
       /overlapping span/,
+    );
+  });
+
+  it("rejects duplicate finding IDs", () => {
+    const findings = resolveFindingSpans(
+      "one two",
+      [analysisFinding("one", "one"), analysisFinding("two", "two")],
+      "2026-07-18",
+    );
+    const duplicateId = findings.map((finding) => ({
+      ...finding,
+      id: "duplicate",
+    }));
+
+    expect(() => toRenderSegments("one two", duplicateId)).toThrow(
+      /Duplicate finding ID/,
     );
   });
 });
