@@ -31,8 +31,14 @@ type PulseCheckAppProps = {
 };
 
 type AppStatus = "empty" | "ready" | "checking" | "completed" | "error";
+type FindingFilter = "all" | Finding["claimType"];
 
-const FILTER_CHIPS = ["All", "Facts", "Forecasts", "Opinions"] as const;
+const FINDING_FILTERS: Array<{ id: FindingFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "fact", label: "Facts" },
+  { id: "forecast", label: "Forecasts" },
+  { id: "opinion", label: "Opinions" },
+];
 
 function getErrorMessage(error: unknown) {
   if (
@@ -148,6 +154,7 @@ export function PulseCheckApp({
   );
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [savingFindingId, setSavingFindingId] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FindingFilter>("all");
 
   const fixtureRunClient = useMemo(
     () => createFixtureRunClient(demoArticle, demoExpected),
@@ -203,6 +210,7 @@ export function PulseCheckApp({
     setError(null);
     setDecisions([]);
     setSelectedFindingId(null);
+    setActiveFilter("all");
     setStatus(nextArticle.length === 0 ? "empty" : "ready");
   }
 
@@ -212,6 +220,7 @@ export function PulseCheckApp({
     setError(null);
     setDecisions([]);
     setSelectedFindingId(null);
+    setActiveFilter("all");
     setStatus("ready");
   }
 
@@ -222,6 +231,7 @@ export function PulseCheckApp({
     setDecisions([]);
     setSelectedFindingId(null);
     setDecisionError(null);
+    setActiveFilter("all");
     setStatus("empty");
     if (usesDurableBackend) writeRunParam(null);
   }
@@ -248,6 +258,7 @@ export function PulseCheckApp({
       setRunView(completedRun);
       setDecisions([]);
       setSelectedFindingId(null);
+      setActiveFilter("all");
       setStatus("completed");
     } catch (caught) {
       setError(getErrorMessage(caught));
@@ -257,10 +268,16 @@ export function PulseCheckApp({
 
   const findings = runView?.findings ?? [];
   const isCompleted = status === "completed" && runView !== null;
+  const visibleFindings = findings.filter(
+    (finding) => activeFilter === "all" || finding.claimType === activeFilter,
+  );
+  const visibleFindingIds = new Set(
+    visibleFindings.map((finding) => finding.id),
+  );
   const selectedFinding =
-    findings.find(({ id }) => id === selectedFindingId) ?? null;
+    visibleFindings.find(({ id }) => id === selectedFindingId) ?? null;
   const selectedIndex = selectedFinding
-    ? findings.findIndex(({ id }) => id === selectedFinding.id)
+    ? visibleFindings.findIndex(({ id }) => id === selectedFinding.id)
     : -1;
   const selectedDecision = selectedFinding
     ? latestDecisionForFinding(selectedFinding.id, decisions)
@@ -304,11 +321,27 @@ export function PulseCheckApp({
   }
 
   function selectRelativeFinding(offset: number) {
-    if (findings.length === 0) return;
+    if (visibleFindings.length === 0) return;
     const nextIndex =
-      (selectedIndex + offset + findings.length) % findings.length;
-    setSelectedFindingId(findings[nextIndex]?.id ?? null);
+      (selectedIndex + offset + visibleFindings.length) %
+      visibleFindings.length;
+    setSelectedFindingId(visibleFindings[nextIndex]?.id ?? null);
     setDecisionError(null);
+  }
+
+  function handleFilterChange(filter: FindingFilter) {
+    setActiveFilter(filter);
+    setDecisionError(null);
+    if (
+      selectedFindingId &&
+      !findings.some(
+        (finding) =>
+          finding.id === selectedFindingId &&
+          (filter === "all" || finding.claimType === filter),
+      )
+    ) {
+      setSelectedFindingId(null);
+    }
   }
 
   function closeEvidencePanel() {
@@ -333,9 +366,9 @@ export function PulseCheckApp({
                   PulseCheck
                 </h1>
                 <p role="status" className="mt-0.5 text-sm text-[#8e8ea0]">
-                  {findings.length}{" "}
-                  {findings.length === 1 ? "finding" : "findings"} ready to
-                  review.
+                  {activeFilter === "all"
+                    ? `${findings.length} ${findings.length === 1 ? "finding" : "findings"} ready to review.`
+                    : `${visibleFindings.length} of ${findings.length} ${FINDING_FILTERS.find(({ id }) => id === activeFilter)?.label.toLowerCase()} shown.`}
                 </p>
               </div>
               <button
@@ -347,19 +380,44 @@ export function PulseCheckApp({
               </button>
             </div>
 
-            <div className="mt-5 flex items-center gap-1.5">
-              {FILTER_CHIPS.map((chip, index) => (
-                <span
-                  key={chip}
-                  className={`cursor-default rounded-full px-3.5 py-1.5 text-sm transition ${
-                    index === 0
-                      ? "bg-[#2f2f2f] font-medium text-[#f3f3f3]"
-                      : "text-[#9b9b9b] hover:bg-white/5"
-                  }`}
-                >
-                  {chip}
-                </span>
-              ))}
+            <div
+              role="group"
+              aria-label="Filter findings"
+              className="mt-5 flex flex-wrap items-center gap-1.5"
+            >
+              {FINDING_FILTERS.map(({ id, label }) => {
+                const count =
+                  id === "all"
+                    ? findings.length
+                    : findings.filter(({ claimType }) => claimType === id)
+                        .length;
+                return (
+                  <button
+                    type="button"
+                    key={id}
+                    aria-label={`${label}: ${count} ${count === 1 ? "finding" : "findings"}`}
+                    aria-pressed={activeFilter === id}
+                    onClick={() => handleFilterChange(id)}
+                    className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-white/60 ${
+                      activeFilter === id
+                        ? "bg-[#2f2f2f] font-medium text-[#f3f3f3]"
+                        : "text-[#9b9b9b] hover:bg-white/5"
+                    }`}
+                  >
+                    <span>{label}</span>
+                    <span
+                      aria-hidden="true"
+                      className={`text-xs ${
+                        activeFilter === id
+                          ? "text-[#c6c6c6]"
+                          : "text-[#6f6f78]"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             <div
@@ -373,6 +431,7 @@ export function PulseCheckApp({
                 <ArticleView
                   originalText={runView.document.originalText}
                   findings={findings}
+                  visibleFindingIds={visibleFindingIds}
                   decisions={decisions}
                   selectedFindingId={selectedFindingId}
                   onSelectFinding={(findingId) => {
@@ -387,7 +446,7 @@ export function PulseCheckApp({
                   finding={selectedFinding}
                   decision={selectedDecision}
                   position={selectedIndex + 1}
-                  total={findings.length}
+                  total={visibleFindings.length}
                   isSaving={savingFindingId === selectedFinding.id}
                   error={decisionError}
                   onDecision={(decision) => void handleDecision(decision)}

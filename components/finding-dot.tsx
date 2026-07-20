@@ -52,16 +52,10 @@ export function getVerdictTextClass(verdict: Verdict) {
 type FindingDotProps = {
   finding: Finding;
   selected: boolean;
-  top: number;
   onSelect: () => void;
 };
 
-export function FindingDot({
-  finding,
-  selected,
-  top,
-  onSelect,
-}: FindingDotProps) {
+export function FindingDot({ finding, selected, onSelect }: FindingDotProps) {
   const verdict = VERDICT_META[finding.verdict];
   const label = `${verdict.label}: ${finding.sourceText}`;
 
@@ -72,8 +66,7 @@ export function FindingDot({
       aria-label={label}
       aria-pressed={selected}
       onClick={onSelect}
-      style={{ top }}
-      className={`group absolute right-0 inline-flex h-5 w-5 items-center justify-center rounded-full outline-none transition focus-visible:ring-2 focus-visible:ring-white/70 ${
+      className={`group relative ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full align-middle outline-none transition focus-visible:ring-2 focus-visible:ring-white/70 ${
         selected ? "bg-white/10" : "hover:bg-white/5"
       }`}
     >
