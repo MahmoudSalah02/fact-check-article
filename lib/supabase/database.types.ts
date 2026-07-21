@@ -234,6 +234,35 @@ export type Database = {
           },
         ];
       };
+      webhook_events: {
+        Row: {
+          event_id: string;
+          event_type: string;
+          received_at: string;
+          run_id: string | null;
+        };
+        Insert: {
+          event_id: string;
+          event_type: string;
+          received_at?: string;
+          run_id?: string | null;
+        };
+        Update: {
+          event_id?: string;
+          event_type?: string;
+          received_at?: string;
+          run_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "webhook_events_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "analysis_runs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
