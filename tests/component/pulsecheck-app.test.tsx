@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -52,6 +52,15 @@ describe("F1 PulseCheck experience", () => {
     );
     expect(screen.getByText("New chat")).toBeVisible();
     expect(screen.getByText("Recents")).toBeVisible();
+    expect(screen.getByText("No recent checks yet")).toBeVisible();
+    expect(screen.queryByText("Draft launch announcement")).toBeNull();
+    expect(
+      within(
+        screen.getByRole("group", { name: "PulseCheck workspace" }),
+      ).getByText("PulseCheck"),
+    ).toBeVisible();
+    expect(screen.getByText("Evidence workspace")).toBeVisible();
+    expect(screen.queryByText("Evidence workspace ready")).toBeNull();
     expect(screen.getByText("ChatGPT")).toBeVisible();
     expect(screen.getByText("Codex")).toBeVisible();
     expect(screen.getByRole("heading", { name: "PulseCheck" })).toBeVisible();

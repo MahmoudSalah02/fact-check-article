@@ -41,6 +41,8 @@ const ICON_PATHS = {
   plugins:
     "M16.5 12a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm0 0c0 1.657 1.007 3 2.25 3S21 13.657 21 12a9 9 0 1 0-2.636 6.364",
   more: "M6 12h.01M12 12h.01M18 12h.01",
+  history:
+    "M3.75 12a8.25 8.25 0 1 0 2.416-5.834L3.75 8.582M3.75 3.75v4.832h4.832M12 7.5V12l3 1.5",
 } as const;
 
 const SECONDARY_NAV = [
@@ -51,27 +53,14 @@ const SECONDARY_NAV = [
   { label: "Plugins", icon: ICON_PATHS.plugins },
 ] as const;
 
-const RECENTS = [
-  "Draft launch announcement",
-  "Summarize sprint retro notes",
-  "Compare vector databases",
-  "Refactor auth middleware plan",
-  "Plan team offsite agenda",
-  "Debug flaky end-to-end run",
-  "Write Q3 release notes",
-  "Brainstorm onboarding ideas",
-  "Explain RLS to a new hire",
-  "Trip packing checklist",
-] as const;
-
 export function ProductShell({ children }: ProductShellProps) {
   return (
     <div className="flex h-dvh overflow-hidden bg-[#0d0d0d] text-[#ececec]">
       <aside
         aria-label="Product sidebar"
-        className="hidden w-[260px] shrink-0 flex-col border-r border-white/5 bg-[#0d0d0d] md:flex"
+        className="pulsecheck-sidebar-divider hidden w-[260px] shrink-0 flex-col bg-[#0d0d0d] md:flex"
       >
-        <div className="px-4 pt-4 pb-2">
+        <div className="px-4 pt-4 pb-3">
           <span className="text-lg font-semibold tracking-tight text-[#ececec]">
             ChatGPT
           </span>
@@ -81,7 +70,7 @@ export function ProductShell({ children }: ProductShellProps) {
           aria-label="Product navigation"
           className="flex-1 overflow-y-auto px-2 pb-4"
         >
-          <span className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#ececec] transition hover:bg-white/5">
+          <span className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#ececec] transition-colors duration-200 hover:bg-white/[0.06]">
             <span className="text-[#b4b4b4]">
               <Icon path={ICON_PATHS.newChat} />
             </span>
@@ -91,7 +80,7 @@ export function ProductShell({ children }: ProductShellProps) {
           <Link
             href="/"
             aria-current="page"
-            className="flex items-center gap-2.5 rounded-lg bg-[#212121] px-2.5 py-2 text-sm font-medium text-[#f3f3f3] outline-none transition hover:bg-[#2a2a2a] focus-visible:ring-2 focus-visible:ring-white/40"
+            className="flex items-center gap-2.5 rounded-lg bg-[#212121] px-2.5 py-2 text-sm font-medium text-[#f3f3f3] shadow-[0_8px_24px_rgba(0,0,0,0.16)] outline-none transition-all duration-200 hover:bg-[#292929] focus-visible:ring-2 focus-visible:ring-white/40"
           >
             <span className="text-[#ececec]">
               <Icon path={ICON_PATHS.pulseCheck} />
@@ -102,7 +91,7 @@ export function ProductShell({ children }: ProductShellProps) {
           {SECONDARY_NAV.map((item) => (
             <span
               key={item.label}
-              className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#ececec] transition hover:bg-white/5"
+              className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#d4d4d4] transition-colors duration-200 hover:bg-white/[0.06] hover:text-white"
             >
               <span className="text-[#b4b4b4]">
                 <Icon path={item.icon} />
@@ -111,55 +100,56 @@ export function ProductShell({ children }: ProductShellProps) {
             </span>
           ))}
 
-          <span className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#ececec] transition hover:bg-white/5">
+          <span className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#d4d4d4] transition-colors duration-200 hover:bg-white/[0.06] hover:text-white">
             <span className="text-[#b4b4b4]">
               <Icon path={ICON_PATHS.more} strokeWidth={2.5} />
             </span>
             More
           </span>
 
-          <p className="px-2.5 pt-6 pb-1 text-xs font-medium text-[#8e8ea0]">
+          <p className="px-2.5 pt-6 pb-2 text-xs font-medium text-[#8e8ea0]">
             Recents
           </p>
-          <ul>
-            {RECENTS.map((item) => (
-              <li key={item}>
-                <span className="block cursor-default truncate rounded-lg px-2.5 py-1.5 text-sm text-[#d1d1d1] transition hover:bg-white/5">
-                  {item}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <div className="mx-1 rounded-xl bg-white/[0.025] px-3 py-3.5">
+            <span className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04] text-[#9b9b9b]">
+              <Icon path={ICON_PATHS.history} />
+            </span>
+            <p className="text-sm font-medium text-[#d7d7d7]">
+              No recent checks yet
+            </p>
+            <p className="mt-1 text-xs leading-5 text-[#777780]">
+              Completed analyses will appear here.
+            </p>
+          </div>
         </nav>
 
-        <div className="flex items-center gap-2.5 border-t border-white/5 px-4 py-3">
+        <div
+          role="group"
+          aria-label="PulseCheck workspace"
+          className="pulsecheck-footer-divider flex items-center gap-2.5 px-4 py-3.5"
+        >
           <span
             aria-hidden="true"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-purple-700 text-xs font-semibold text-white"
+            className="pulsecheck-workspace-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-[0_0_24px_rgba(255,255,255,0.08)]"
           >
-            MS
+            <Icon path={ICON_PATHS.pulseCheck} strokeWidth={1.8} />
           </span>
           <span className="min-w-0">
             <span className="block truncate text-sm text-[#ececec]">
-              Mahmoud Salah
+              PulseCheck
             </span>
-            <span className="block text-xs text-[#8e8ea0]">Plus</span>
+            <span className="flex items-center gap-1.5 text-xs text-[#8e8ea0]">
+              <span
+                aria-hidden="true"
+                className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]"
+              />
+              Evidence workspace
+            </span>
           </span>
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex justify-center px-4 pt-4">
-          <span className="flex items-center rounded-full bg-white/5 p-1 text-sm">
-            <span className="cursor-default rounded-full bg-[#2f2f2f] px-4 py-1.5 font-medium text-[#f3f3f3]">
-              Chat
-            </span>
-            <span className="cursor-default rounded-full px-4 py-1.5 text-[#9b9b9b]">
-              Work
-            </span>
-          </span>
-        </header>
-
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_-20%,rgba(255,255,255,0.065),transparent_38%)]">
         {children}
 
         <p className="mt-auto px-4 pb-4 text-center text-xs text-[#8e8ea0]">

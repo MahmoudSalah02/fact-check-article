@@ -11,6 +11,9 @@
 
 html {
   background: var(--background);
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -24,9 +27,32 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+::selection {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
 button,
 textarea {
+  -webkit-appearance: none;
+  appearance: none;
   font: inherit;
+}
+
+.pulsecheck-sidebar-divider {
+  border-right: 0;
+  box-shadow: inset -1px 0 0 #1b1b1b;
+}
+
+.pulsecheck-footer-divider {
+  border-top: 0;
+  box-shadow: inset 0 1px 0 #1b1b1b;
+}
+
+.pulsecheck-workspace-icon {
+  border: 1px solid #b8b8b8;
+  background: #d2d2d2;
+  color: #171717;
 }
 
 /* Thin, dark scrollbars so internal scroll areas feel native. */
@@ -44,4 +70,76 @@ textarea {
 }
 *::-webkit-scrollbar-track {
   background: transparent;
+}
+
+@keyframes pulsecheck-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes pulsecheck-dot-pop {
+  0% {
+    transform: scale(0.78);
+  }
+  65% {
+    transform: scale(1.16);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulsecheck-decision-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulsecheck-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pulsecheck-panel-enter {
+  animation: pulsecheck-panel-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.pulsecheck-dot-selected {
+  animation: pulsecheck-dot-pop 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.pulsecheck-decision-enter {
+  animation: pulsecheck-decision-in 180ms ease-out;
+}
+
+.pulsecheck-tooltip-enter {
+  animation: pulsecheck-tooltip-in 140ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

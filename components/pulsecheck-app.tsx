@@ -452,7 +452,7 @@ export function PulseCheckApp({
                   : "grid-cols-1"
               }`}
             >
-              <div className="min-h-0 overflow-y-auto rounded-2xl border border-white/5 bg-[#151515] p-5 sm:p-7">
+              <div className="min-h-0 overflow-y-auto rounded-2xl border border-[#242424] bg-[#151515] p-5 sm:p-7">
                 <ArticleView
                   originalText={runView.document.originalText}
                   findings={findings}
@@ -468,6 +468,7 @@ export function PulseCheckApp({
 
               {selectedFinding ? (
                 <EvidencePanel
+                  key={selectedFinding.id}
                   finding={selectedFinding}
                   decision={selectedDecision}
                   position={selectedIndex + 1}

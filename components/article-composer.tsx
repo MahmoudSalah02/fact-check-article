@@ -41,7 +41,7 @@ export function ArticleComposer({
   }, [article]);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#1b1b1b] p-3 focus-within:border-white/25">
+    <div className="rounded-2xl border border-white/10 bg-[#1b1b1b]/95 p-3 shadow-[0_20px_70px_rgba(0,0,0,0.28)] backdrop-blur-sm transition-all duration-300 focus-within:-translate-y-0.5 focus-within:border-white/25 focus-within:shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
       <div>
         <label htmlFor="article" className="sr-only">
           Article text
@@ -66,7 +66,7 @@ export function ArticleComposer({
               type="button"
               onClick={onLoadDemo}
               disabled={isChecking}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-[#d7d7d7] outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-[#d7d7d7] outline-none transition-all duration-200 hover:bg-white/10 hover:text-white active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Load demo article
             </button>
@@ -75,7 +75,7 @@ export function ArticleComposer({
                 type="button"
                 onClick={onReset}
                 disabled={isChecking}
-                className="rounded-lg px-3 py-2 text-sm text-[#9b9b9b] outline-none hover:bg-white/10 hover:text-[#ececec] focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg px-3 py-2 text-sm text-[#9b9b9b] outline-none transition-all duration-200 hover:bg-white/10 hover:text-[#ececec] active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Clear article
               </button>
@@ -98,7 +98,7 @@ export function ArticleComposer({
               type="button"
               onClick={onCheckArticle}
               disabled={!canCheck}
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#0d0d0d] outline-none hover:bg-[#ececec] focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:bg-white/15 disabled:text-white/40"
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#0d0d0d] shadow-[0_8px_24px_rgba(255,255,255,0.1)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#ececec] hover:shadow-[0_10px_30px_rgba(255,255,255,0.16)] active:translate-y-0 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:bg-white/15 disabled:text-white/40 disabled:shadow-none"
             >
               Check article
             </button>

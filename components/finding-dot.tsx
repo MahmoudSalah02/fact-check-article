@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import type { Finding, Verdict } from "@/lib/contracts";
 
 const VERDICT_META: Record<
@@ -56,6 +60,7 @@ type FindingDotProps = {
 };
 
 export function FindingDot({ finding, selected, onSelect }: FindingDotProps) {
+  const [showTooltip, setShowTooltip] = useState(false);
   const verdict = VERDICT_META[finding.verdict];
   const label = `${verdict.label}: ${finding.sourceText}`;
 
@@ -66,17 +71,30 @@ export function FindingDot({ finding, selected, onSelect }: FindingDotProps) {
       aria-label={label}
       aria-pressed={selected}
       onClick={onSelect}
-      className={`group relative ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full align-middle outline-none transition focus-visible:ring-2 focus-visible:ring-white/70 ${
-        selected ? "bg-white/10" : "hover:bg-white/5"
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+      onFocus={() => setShowTooltip(true)}
+      onBlur={() => setShowTooltip(false)}
+      className={`relative ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full align-middle outline-none transition-all duration-200 active:scale-90 focus-visible:ring-2 focus-visible:ring-white/70 ${
+        selected
+          ? "pulsecheck-dot-selected bg-white/10 ring-1 ring-white/10"
+          : "hover:scale-110 hover:bg-white/5"
       }`}
     >
       <span
         aria-hidden="true"
-        className={`h-2 w-2 rounded-full ${verdict.dotClass}`}
+        className={`h-2 w-2 rounded-full transition-all duration-200 hover:scale-125 ${
+          selected ? "scale-125" : ""
+        } ${verdict.dotClass}`}
       />
-      <span className="pointer-events-none absolute right-0 bottom-full z-20 mb-1 hidden w-max max-w-64 rounded-md border border-white/10 bg-[#2f2f2f] px-2 py-1 text-left text-xs text-[#ececec] shadow-xl group-hover:block group-focus-visible:block">
-        {verdict.label}
-      </span>
+      {showTooltip ? (
+        <span
+          role="tooltip"
+          className="pulsecheck-tooltip-enter pointer-events-none absolute right-0 bottom-full z-20 mb-1 w-max max-w-64 rounded-md border border-[#444] bg-[#2f2f2f] px-2 py-1 text-left text-xs text-[#ececec] shadow-xl"
+        >
+          {verdict.label}
+        </span>
+      ) : null}
     </button>
   );
 }

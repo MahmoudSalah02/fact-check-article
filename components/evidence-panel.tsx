@@ -44,7 +44,7 @@ export function EvidencePanel({
   return (
     <aside
       aria-label="Evidence panel"
-      className="min-h-0 overflow-y-auto rounded-2xl border border-white/10 bg-[#212121] p-5 shadow-2xl"
+      className="pulsecheck-panel-enter min-h-0 overflow-y-auto rounded-2xl border border-[#303030] bg-[#212121] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.32)]"
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-[#8e8ea0]">
@@ -105,7 +105,7 @@ export function EvidencePanel({
                   href={source.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block rounded-lg p-2 text-sm text-[#d8d8d8] outline-none hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-white/60"
+                  className="block rounded-lg p-2 text-sm text-[#d8d8d8] outline-none transition-all duration-200 hover:translate-x-0.5 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-white/60"
                 >
                   <span className="block leading-5 text-sky-300">
                     {source.title}
@@ -128,21 +128,36 @@ export function EvidencePanel({
 
       <p className="mt-5 text-xs text-[#8e8ea0]">Checked {finding.checkedAt}</p>
 
-      {hasEdit ? (
-        <div className="mt-5 flex flex-wrap gap-2 border-t border-white/10 pt-4">
+      <div className="mt-5 border-t border-[#343434] pt-4">
+        <p className="mb-5 text-xs text-[#8e8ea0]">
+          {hasEdit
+            ? "Apply this proposed correction?"
+            : "Does this assessment look right?"}
+        </p>
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             disabled={isSaving}
+            aria-pressed={decision === "accepted"}
             onClick={() => onDecision("accepted")}
-            className="rounded-full bg-white px-4 py-2 text-sm font-medium text-[#0d0d0d] outline-none hover:bg-[#ececec] focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-50"
+            className={`rounded-full px-4 py-2 text-sm font-medium outline-none transition-all duration-200 hover:-translate-y-0.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-white/60 disabled:translate-y-0 disabled:opacity-50 ${
+              decision === "accepted"
+                ? "bg-emerald-300 text-emerald-950 shadow-[0_8px_24px_rgba(110,231,183,0.18)]"
+                : "bg-[#d4d4d4] text-[#171717] hover:bg-[#e0e0e0]"
+            }`}
           >
-            Accept
+            {isSaving ? "Saving…" : "Accept"}
           </button>
           <button
             type="button"
             disabled={isSaving}
+            aria-pressed={decision === "rejected"}
             onClick={() => onDecision("rejected")}
-            className="rounded-full border border-white/15 px-4 py-2 text-sm text-[#ececec] outline-none hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-50"
+            className={`rounded-full border px-4 py-2 text-sm outline-none transition-all duration-200 hover:-translate-y-0.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-white/60 disabled:translate-y-0 disabled:opacity-50 ${
+              decision === "rejected"
+                ? "border-red-300/30 bg-red-300/15 text-red-200"
+                : "border-[#484848] text-[#ececec] hover:bg-white/5"
+            }`}
           >
             Reject
           </button>
@@ -151,16 +166,20 @@ export function EvidencePanel({
               type="button"
               disabled={isSaving}
               onClick={() => onDecision("restored")}
-              className="rounded-full px-3 py-2 text-sm text-[#9b9b9b] outline-none hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-50"
+              className="rounded-full px-3 py-2 text-sm text-[#9b9b9b] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/5 hover:text-white active:scale-95 focus-visible:ring-2 focus-visible:ring-white/60 disabled:translate-y-0 disabled:opacity-50"
             >
               Restore
             </button>
           ) : null}
         </div>
-      ) : null}
+      </div>
 
       {decision ? (
-        <p role="status" className="mt-3 text-xs capitalize text-[#9b9b9b]">
+        <p
+          key={decision}
+          role="status"
+          className="pulsecheck-decision-enter mt-3 text-xs capitalize text-[#9b9b9b]"
+        >
           Decision: {decision}
         </p>
       ) : null}
@@ -170,12 +189,12 @@ export function EvidencePanel({
         </p>
       ) : null}
 
-      <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
+      <div className="mt-5 flex items-center justify-between border-t border-[#343434] pt-4">
         <button
           type="button"
           onClick={onPrevious}
           disabled={total < 2}
-          className="rounded-lg px-3 py-2 text-sm text-[#b4b4b4] outline-none hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40"
+          className="rounded-lg px-3 py-2 text-sm text-[#b4b4b4] outline-none transition-all duration-200 hover:-translate-x-0.5 hover:bg-white/5 hover:text-white active:scale-95 focus-visible:ring-2 focus-visible:ring-white/60 disabled:translate-x-0 disabled:opacity-40"
         >
           Previous
         </button>
@@ -183,7 +202,7 @@ export function EvidencePanel({
           type="button"
           onClick={onNext}
           disabled={total < 2}
-          className="rounded-lg px-3 py-2 text-sm text-[#b4b4b4] outline-none hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40"
+          className="rounded-lg px-3 py-2 text-sm text-[#b4b4b4] outline-none transition-all duration-200 hover:translate-x-0.5 hover:bg-white/5 hover:text-white active:scale-95 focus-visible:ring-2 focus-visible:ring-white/60 disabled:translate-x-0 disabled:opacity-40"
         >
           Next
         </button>

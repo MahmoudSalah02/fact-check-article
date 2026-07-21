@@ -90,7 +90,16 @@ describe("F3 inline findings experience", () => {
     const outdated = screen.getByRole("button", {
       name: /Outdated: Jennifer Granholm/,
     });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    await user.hover(outdated);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Outdated");
+    await user.unhover(outdated);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
     outdated.focus();
+    await waitFor(() =>
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Outdated"),
+    );
     await user.keyboard("{Enter}");
     expect(
       screen.getByRole("complementary", { name: "Evidence panel" }),
@@ -102,6 +111,29 @@ describe("F3 inline findings experience", () => {
 
     await user.keyboard("{Enter}");
     await waitFor(() => expect(outdated).toHaveFocus());
+  });
+
+  it.each([
+    "Verified",
+    "Outdated",
+    "Contradicted",
+    "Unsupported",
+    "Needs context",
+    "Unresolved",
+    "Opinion",
+  ])("offers Accept and Reject for the %s verdict", async (verdict) => {
+    const { user } = await renderCompletedApp();
+    await user.click(
+      screen.getAllByRole("button", {
+        name: new RegExp(`^${verdict}:`),
+      })[0]!,
+    );
+
+    const panel = screen.getByRole("complementary", {
+      name: "Evidence panel",
+    });
+    expect(within(panel).getByRole("button", { name: "Accept" })).toBeVisible();
+    expect(within(panel).getByRole("button", { name: "Reject" })).toBeVisible();
   });
 
   it("shows the required evidence and safe source links", async () => {
@@ -251,7 +283,7 @@ describe("F3 inline findings experience", () => {
     expect(article.dataset.updatedText).toBe(demoArticle);
   });
 
-  it("navigates findings and exposes forecast status without offering false edits", async () => {
+  it("navigates findings and offers decisions without inventing false edits", async () => {
     const { user } = await renderCompletedApp();
     await user.click(
       screen.getByRole("button", {
@@ -271,8 +303,15 @@ describe("F3 inline findings experience", () => {
     const panel = screen.getByRole("complementary", {
       name: "Evidence panel",
     });
-    expect(within(panel).queryByRole("button", { name: "Accept" })).toBeNull();
-    expect(within(panel).queryByRole("button", { name: "Reject" })).toBeNull();
+    expect(within(panel).getByRole("button", { name: "Accept" })).toBeVisible();
+    expect(within(panel).getByRole("button", { name: "Reject" })).toBeVisible();
+    expect(screen.getByText("Does this assessment look right?")).toBeVisible();
+
+    await user.click(within(panel).getByRole("button", { name: "Accept" }));
+    expect(within(panel).getByRole("status")).toHaveTextContent(
+      "Decision: accepted",
+    );
+    expect(screen.getByRole("button", { name: "updated" })).toBeDisabled();
   });
 
   it("closes the panel and retains a calm article-first layout", async () => {
