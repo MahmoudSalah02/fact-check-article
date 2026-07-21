@@ -87,6 +87,41 @@ async function loadPersistedDecisions(
   );
 }
 
+const POLL_INTERVAL_MS = 1500;
+const POLL_TIMEOUT_MS = 180_000;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Poll a run until it reaches a terminal state. HTTP success is not analysis
+ * completion: the OpenAI path returns `in_progress`, and only the backend run
+ * status is authoritative. The fixture path already returns `completed`, so the
+ * first read exits the loop immediately.
+ */
+async function pollRunUntilTerminal(
+  client: RunClient,
+  runId: string,
+  shouldStop: () => boolean,
+): Promise<RunView | null> {
+  const startedAt = Date.now();
+  let view = await client.getRun(runId);
+  while (view.run.status === "queued" || view.run.status === "in_progress") {
+    if (shouldStop() || Date.now() - startedAt >= POLL_TIMEOUT_MS) break;
+    await sleep(POLL_INTERVAL_MS);
+    view = await client.getRun(runId);
+  }
+  return shouldStop() ? null : view;
+}
+
+function getRunFailureMessage(errorCode: string | null) {
+  switch (errorCode) {
+    case "invalid_analysis_output":
+    case "no_usable_findings":
+      return "We couldn't extract verifiable findings from this article. Please try again.";
+    default:
+      return "We couldn't complete the analysis. Please try again.";
+  }
+}
+
 function latestDecisionForFinding(
   findingId: string,
   decisions: EditDecision[],
@@ -141,7 +176,21 @@ export function PulseCheckApp({
     async function restoreRun() {
       try {
         setStatus("checking");
-        const restored = await client.getRun(runId);
+        const restored = await pollRunUntilTerminal(
+          client,
+          runId,
+          () => cancelled,
+        );
+        if (!restored || cancelled) return;
+        if (restored.run.status !== "completed") {
+          setError(
+            restored.run.status === "failed"
+              ? getRunFailureMessage(restored.run.errorCode)
+              : "This is taking longer than expected. Please refresh.",
+          );
+          setStatus("error");
+          return;
+        }
         const restoredDecisions =
           restored.findings && usesDurableBackend
             ? await loadPersistedDecisions(restored.findings)
@@ -214,8 +263,22 @@ export function PulseCheckApp({
     try {
       const created = await runClient.createRun({ text: article, title: null });
       onRunIdChange?.(created.runId);
-      const completedRun = await runClient.getRun(created.runId);
-      setRunView(completedRun);
+      const finished = await pollRunUntilTerminal(
+        runClient,
+        created.runId,
+        () => false,
+      );
+      if (!finished) return;
+      if (finished.run.status !== "completed") {
+        setError(
+          finished.run.status === "failed"
+            ? getRunFailureMessage(finished.run.errorCode)
+            : "This is taking longer than expected. Please try again.",
+        );
+        setStatus("error");
+        return;
+      }
+      setRunView(finished);
       setDecisions([]);
       setSelectedFindingId(null);
       setActiveFilter("all");

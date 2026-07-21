@@ -18,11 +18,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:fixture": "vitest run tests/contract/demo-fixture.test.ts",
+    "test:live": "OPENAI_LIVE=1 node --env-file=.env.local node_modules/vitest/vitest.mjs run tests/live/openai-live.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.7",
     "next": "16.2.10",
+    "openai": "^6.48.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "0.0.1",

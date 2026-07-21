@@ -6,9 +6,12 @@ PulseCheck is an evidence-backed fact proofreader. It preserves an article's ori
 
 ## Current status
 
-M1's deterministic fixture-backed vertical slice is complete. F1 adds the calm, article-first PulseCheck shell and input states on top of that same fake `RunClient` boundary: a user can load the prepared article, run the fixture-backed analysis, and receive nine schema-validated findings without a network request, database, provider account, or paid model.
+M1–M3 and F1–F4 are complete. The app runs in two modes:
 
-See [PRD.md](PRD.md) for the product, architecture, and two-developer delivery roadmap.
+- **Fixture mode (default, zero config):** the prepared demo article returns nine deterministic, schema-validated findings with no network, database, or provider account.
+- **Live mode (`.env.local`):** any pasted article is stored in Supabase under an anonymous session and analyzed by a real OpenAI background response with web search; findings are evidence-checked, span-resolved, and persisted. The prepared demo article stays free (fixture) even in live mode.
+
+See [PRD.md](PRD.md) for the product, architecture, and delivery roadmap (one FINAL wrap-up ticket remains).
 
 ## Local setup
 
@@ -35,7 +38,30 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open <http://localhost:3000>, choose **Load demo article**, then choose **Check article**. No `.env.local` is needed for M1. If you create one for future work, start from `.env.example` and never commit it.
+Open <http://localhost:3000>, choose **Load demo article**, then choose **Check article**. No `.env.local` is needed for fixture mode.
+
+## Running live analysis (Supabase + OpenAI)
+
+Live mode needs a `.env.local` in the repository root. **Never commit it** — it is gitignored, and every value in it is a secret. Mahmoud shares the current file through a secure channel (password manager or encrypted message; never chat, email, or git). The variables it contains are listed in [.env.example](.env.example): hosted dev Supabase URL/keys, `DATA_BACKEND=supabase`, `ANALYSIS_PROVIDER=openai`, `OPENAI_API_KEY`, and `OPENAI_MODEL`.
+
+With the file in place:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+- **Demo article** → completes instantly and free (fixture short-circuit).
+- **Any other article** → creates a durable run, submits a background OpenAI response with web search, and the page polls until findings render (typically 20–90 seconds). The OpenAI key is prepaid — each real run costs real money, so don't loop them casually.
+- Local Supabase/Docker is **not** required in this mode; the env points at the hosted dev project.
+
+To verify the whole pipeline end to end (5 real articles through the exact app code, ~$0.50 per round):
+
+```bash
+pnpm test:live
+```
+
+It is skipped automatically in CI and in plain `pnpm test`.
 
 ## Quality gate
 

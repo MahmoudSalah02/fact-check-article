@@ -51,15 +51,38 @@ export async function completeDurableRun(
   runId: string,
   providerResponseId: string,
   findings: Finding[],
+  model = "fixture",
 ) {
   const { error } = await client.rpc("complete_analysis_run", {
     p_run_id: runId,
-    p_model: "fixture",
+    p_model: model,
     p_provider_response_id: providerResponseId,
     p_findings: findings as unknown as Json,
   });
   if (error) {
+    // P0002: the run was already terminal (a concurrent webhook/poll won the
+    // race). Completion is idempotent, so treat that as a benign no-op.
+    if (error.code === "P0002") return;
     throw new PersistenceUnavailableError("Unable to complete analysis run");
+  }
+}
+
+export async function markRunInProgress(
+  client: UserClient,
+  runId: string,
+  providerResponseId: string,
+) {
+  const { error } = await client
+    .from("analysis_runs")
+    .update({
+      status: "in_progress",
+      provider_response_id: providerResponseId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", runId)
+    .eq("status", "queued");
+  if (error) {
+    throw new PersistenceUnavailableError("Unable to start analysis run");
   }
 }
 
@@ -68,6 +91,8 @@ export async function failDurableRun(
   runId: string,
   errorCode: string,
 ) {
+  // Only fail a still-running run so a late failure never clobbers a completed
+  // one (webhook and poll reconciliation can race).
   await client
     .from("analysis_runs")
     .update({
@@ -75,7 +100,8 @@ export async function failDurableRun(
       error_code: errorCode,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", runId);
+    .eq("id", runId)
+    .in("status", ["queued", "in_progress"]);
 }
 
 export async function getDurableRun(

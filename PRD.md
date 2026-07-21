@@ -547,10 +547,8 @@ The entire F-track (F1–F4) and M1–M2 are merged to `main`. **Everything rema
 | F2 — exact-span edit engine | ✅ Merged | PR #14 |
 | F3 — inline findings and evidence | ✅ Merged | PR #15 |
 | F4 — fact-checking logic and evals | ✅ Merged | PR #16, sidebar fix #17 |
-| **M3 — run API and OpenAI lifecycle** | 🔜 **Do next** (gate M2 ✓) | — |
-| **M4 — production, security, observability** | ⏳ After M3 | — |
-| **F5 — real integration and judge journey** | ⏳ After M3 (F3 ✓, F4 ✓); **now Mahmoud** | — |
-| **M5 — reliability gate and release** | ⏳ After F5 + M4 | — |
+| M3 — run API and OpenAI lifecycle | ✅ Merged | `m3-openai-lifecycle` PR |
+| **FINAL — demo-ready wrap-up** | 🔜 **The one remaining ticket** (absorbs M4/F5/M6/M5; observability descoped) | see "FINAL" section |
 
 **Scope notes recorded at merge time:**
 
@@ -767,7 +765,9 @@ Both developers implement with AI models and review each other's PRs. These rule
 
 ### M3 — Mahmoud: run API and durable OpenAI lifecycle
 
-**Start gate:** M2 is merged (✓). This is the next ticket to start. Shared contracts from M1 remain unchanged unless both developers approve a revision.
+> ✅ **Completed** (`m3-openai-lifecycle` PR). Verified end to end against real OpenAI on the hosted dev Supabase, plus an automated live harness (`pnpm test:live`) that runs five diverse articles through the exact app pipeline. Notable deviations recorded at completion: Structured Outputs (`json_schema`) is used with `web_search` (JSON mode is rejected with it); `web_search_call.action.sources` must be requested via `include` on both create and retrieve; evidence is verified at the **host level** (model reformats cited URLs); a deterministic tolerance layer normalizes unsafe replacements and resolves quotes leniently (exact-unique → anchored repeats → whitespace-normalized), dropping individual bad findings instead of failing the batch; the UI polls run status until terminal. The webhook route is implemented but unverified live — polling reconciliation is the primary completion path. Quota was descoped (prepaid key + dashboard spend cap).
+
+**Start gate:** M2 is merged (✓). Shared contracts from M1 remain unchanged unless both developers approve a revision.
 
 **Preconditions (verify before writing code):**
 
@@ -780,16 +780,16 @@ Both developers implement with AI models and review each other's PRs. These rule
 
 | File | What to build |
 | --- | --- |
-| `supabase/migrations/<new>.sql` | Add `webhook_events` (unique OpenAI event ID for idempotency) and the per-user daily quota table/RPC deferred from M2. Regenerate `lib/supabase/database.types.ts`. Add pgTAP coverage. |
-| `lib/server/openai/transport.ts` | Implement `OpenAITransport` with the official SDK: `start` submits a background Response (`store: false`) and returns its id; `retrieve` fetches the completed Response. SDK types must not cross this boundary. |
-| `lib/analysis/openai-provider.ts` (new) | Implement `AnalysisProvider` over `OpenAITransport`, parsing results through `parseAndValidateAnalysisOutput`. Selected by `ANALYSIS_PROVIDER=openai`; `fixture`/recorded stay the default. |
-| `app/api/runs/route.ts` | Replace the fixture-only demo gate with the real lifecycle: verify token, enforce the 20,000-char limit, atomically enforce quota + create the run (`queued`), submit the background Response, mark `failed` if submission fails. Do **not** complete synchronously. |
-| `app/api/runs/[id]/route.ts` | Add `Cache-Control: private, no-store` and stale-run reconciliation (a GET on a stuck run reconciles against OpenAI). Keep RLS ownership checks. |
-| `app/api/webhooks/openai/route.ts` | Read `request.text()`, `webhooks.unwrap(...)` with the signing secret, dedupe on `webhook_events`, retrieve + validate + resolve spans, and call the transactional completion RPC. Duplicates are no-ops. |
+| `supabase/migrations/<new>.sql` | Add `webhook_events` (unique OpenAI event ID for idempotency), service-role only. Regenerate `lib/supabase/database.types.ts`. Add pgTAP coverage. (Quota is out of scope — see M6.) |
+| `lib/server/openai/transport.ts` | Implement the transport with the official SDK: `submit` posts a background Response (`store: false`) and returns its id; `fetchResult` retrieves it and extracts evidence. SDK types must not cross this boundary. |
+| `lib/server/analysis-completion.ts` (new) | `completeOpenAiRun(adminClient, runId)`: status-guarded, `fetchResult` → `parseAndValidateAnalysisOutput` → `resolveFindingSpans` → `completeDurableRun`, or `failDurableRun` on terminal failure. Reused by the webhook and GET reconciliation. |
+| `app/api/runs/route.ts` | Branch on `ANALYSIS_PROVIDER`. openai: verify token, enforce 20k limit, create the run, short-circuit the demo article to fixture (free), else submit the background Response + mark `in_progress`; mark `failed` if submission fails. Do **not** complete synchronously. fixture/recorded unchanged. |
+| `app/api/runs/[id]/route.ts` | Add `Cache-Control: private, no-store` and stale-run reconciliation (a GET on a stuck openai run calls `completeOpenAiRun`). Keep RLS ownership checks. |
+| `app/api/webhooks/openai/route.ts` | Read `request.text()`, `webhooks.unwrap(...)` with the signing secret, dedupe on `webhook_events`, resolve run by `provider_response_id`, `completeOpenAiRun`. Duplicates are no-ops. |
 
 **Implement:**
 
-- Implement `POST /api/runs`: verify the bearer token, validate the 20,000-character limit, atomically enforce quota/create the run, submit the background Response with `store: false`, and mark the run failed if submission fails.
+- Implement `POST /api/runs`: verify the bearer token, validate the 20,000-character limit, create the run, submit the background Response with `store: false`, and mark the run failed if submission fails. (No quota — M6.)
 - Implement `GET /api/runs/:id` with user-scoped RLS, ownership checks, polling-friendly `Cache-Control: private, no-store`, and stale-run reconciliation.
 - Implement the Node-runtime OpenAI webhook by reading `request.text()`, calling the official SDK's `webhooks.unwrap(...)`, and recording unique event IDs.
 - Retrieve the completed Response, parse strict structured output, cross-check evidence URLs against citation/source metadata, resolve spans, and call the transactional completion RPC.
@@ -901,7 +901,22 @@ Both developers implement with AI models and review each other's PRs. These rule
 
 **Unlocks:** The analysis half of F5.
 
+### FINAL — Mahmoud: demo-ready wrap-up (absorbs M4, F5, M6, M5)
+
+> 🔜 **The single remaining ticket.** The product works end to end (fixture demo + real OpenAI analysis on hosted dev). This ticket is only what is required to demo and share safely; observability, retention, Sentry, alerts, and production hardening are consciously descoped for the hackathon.
+
+One sitting, in order:
+
+1. **Deploy:** connect the Vercel GitHub App to the repo (dashboard → project `pulsecheck` → Git) so pushes deploy Previews and `main` deploys Production. Set env vars in Vercel (hosted dev Supabase values + `DATA_BACKEND=supabase`; add the OpenAI vars only if judges should hit real analysis on the deployed link).
+2. **Judge gating (minimal M6):** an env access code checked in `POST /api/runs` — without it every non-demo article gets a clear "demo mode" message instead of a real run; with it, real OpenAI. One route branch + one test. (Skip the budget-counter table; the prepaid key and dashboard spend cap bound the cost.)
+3. **Demo dry-run (minimal M5):** full judge journey twice from a clean browser on the deployed URL — demo article (free fixture, instant) and one real article (live analysis) — accept/reject an edit, refresh, confirm restore. Freeze the fixture, tag `v1.0.0`.
+4. Sweep: `rg "TODO\("` has no release blockers; full local gate green.
+
+**Done when:** a shareable URL demos both modes reliably twice in a row, the public cannot spend the OpenAI budget, and the release is tagged.
+
 ### M4 — Mahmoud: production delivery, security, and observability
+
+> ⚠️ **Folded into FINAL** (deploy + env only). Observability, retention, deletion, WAF, and rollback drills are descoped for the hackathon.
 
 **Start gate:** M3 is merged. This keeps Mahmoud to one personal implementation branch and lets hardening observe the real run lifecycle.
 
@@ -946,6 +961,8 @@ Both developers implement with AI models and review each other's PRs. These rule
 
 ### F5 — Mahmoud: real integration and complete judge journey
 
+> ⚠️ **Largely shipped inside M3** (polling until terminal, failure messages, refresh restore). The remaining Preview judge journey is folded into FINAL.
+
 > **Owner reassigned to Mahmoud (July 20, 2026).** Even though this touches `components/`, Mahmoud carries it because it is tightly coupled to the M3 run lifecycle he builds; treat the normal F-track ownership boundary as waived for this ticket only.
 >
 > **Most of F5 already shipped inside F1/F3.** The supabase-mode UI (`components/durable-pulsecheck-app.tsx`) already uses `HttpRunClient`, bootstraps an anonymous session, restores a completed run from `?run=`, and renders findings + evidence (F3). What remains is only the **async-run** half that M3 introduces: today the M2 `POST /api/runs` completes synchronously, so the UI never had to poll. Once M3 makes runs asynchronous (`queued → in_progress → completed|failed`), the UI must poll and handle the in-between and failure states.
@@ -988,6 +1005,8 @@ Both developers implement with AI models and review each other's PRs. These rule
 
 ### M5 — Mahmoud: reliability gate and release
 
+> ⚠️ **Folded into FINAL** (demo dry-run + tag). The exhaustive reliability matrix is descoped for the hackathon.
+
 **Start gate:** F5 and M4 (and every previous ticket) are merged.
 
 **Preconditions (verify before starting):**
@@ -1009,9 +1028,41 @@ Both developers implement with AI models and review each other's PRs. These rule
 
 **Merge/release gate:** CI and production smoke tests pass, no release-blocking TODO remains, the demo has a fallback fixture mode, and both developers sign off on the exact pitch flow.
 
+### M6 — Mahmoud: judge-only real runs (cost gating)
+
+> ⚠️ **Folded into FINAL** as a minimal env access code in `POST /api/runs`; the budget-counter table is descoped.
+
+**Start gate:** M3 is merged (real OpenAI lifecycle exists) and F5 has wired the UI to real runs. May run in parallel with M5. Must land before the app is shared publicly.
+
+**Why:** the OpenAI budget is small and prepaid. The public must default to the free, deterministic fixture path; only judges should be able to spend the budget on real analysis. The M3 demo-article short-circuit already gives everyone a free, real-looking demo.
+
+**Preconditions (verify before writing code):**
+
+- [ ] M3 merged, so `ANALYSIS_PROVIDER=openai` produces real background runs, and the prepared demo article is short-circuited to the fixture (free) even in openai mode.
+- [ ] F5 merged, so the UI drives real runs and their in-progress/terminal states.
+- [ ] Branch from the latest `main`; full local gate passes untouched.
+
+**Implement (API-enforced; never a client-trusted flag):**
+
+- Default every session to the fixture/recorded path. Real OpenAI is unlocked only for a verified judge session.
+- Judge access via a server-verified secret: an access code (env-configured) or magic link that sets an elevated claim on the anonymous session; verify it server-side in `POST /api/runs` before selecting the openai path.
+- A small **global real-run budget guard** (a counter table + atomic check) so total real spend is bounded regardless of how many judges try it; over-budget falls back to fixture with a clear message.
+- A minimal UI affordance to enter the judge code; absent/invalid code silently keeps the free path.
+- Remove all `TODO(M6)` comments.
+
+**Tests:**
+
+- A non-judge session can never trigger a real OpenAI run (route-level test).
+- A valid judge code unlocks exactly the real path and decrements the global guard; an exhausted guard falls back to fixture.
+- The prepared demo article stays free in every session.
+
+**Postconditions:** the public path spends nothing; judges get real runs up to the global cap; the guard is enforced atomically server-side; `rg "TODO\(M6\)"` is empty and the full local gate passes.
+
+**Unlocks:** safe public sharing of the demo.
+
 ### Exact start and merge order
 
-> **Where we are (July 20, 2026):** steps 1–8 below are complete — M1, M2, F1, F2, F3, F4 are all merged. The remaining sequence, all Mahmoud: **M3 next → then M4 and F5 in parallel → then M5 once both land.** F5 is now Mahmoud's (see its section). The historical steps are kept below for reference.
+> **Where we are (July 21, 2026):** M1–M2, F1–F4, and **M3** are complete. Everything left is the single **FINAL** ticket above (deploy, minimal judge gating, demo dry-run, tag). The historical steps are kept below for reference.
 
 This is the recommended human work sequence. It keeps one active implementation branch per developer and makes every dependency explicit.
 
