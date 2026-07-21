@@ -37,21 +37,6 @@ type PulseCheckAppProps = {
 
 type AppStatus =
   "empty" | "ready" | "checking" | "restoring" | "completed" | "error";
-type FindingFilter = "all" | Finding["claimType"];
-
-const FINDING_FILTERS: Array<{ id: FindingFilter; label: string }> = [
-  { id: "all", label: "All" },
-  { id: "fact", label: "Facts" },
-  { id: "forecast", label: "Forecasts" },
-  { id: "opinion", label: "Opinions" },
-];
-
-const CAPABILITIES = [
-  "Fact-check claims",
-  "Refresh old facts",
-  "Validate forecasts",
-] as const;
-
 function ViewerLoading() {
   return (
     <main className="flex min-h-0 flex-1 flex-col px-5 pt-8 pb-2 sm:px-8">
@@ -64,12 +49,7 @@ function ViewerLoading() {
             Opening check…
           </p>
         </div>
-        <div className="mt-5 flex gap-2" aria-hidden="true">
-          <span className="h-8 w-16 rounded-full bg-white/[0.07]" />
-          <span className="h-8 w-20 rounded-full bg-white/[0.04]" />
-          <span className="h-8 w-24 rounded-full bg-white/[0.04]" />
-        </div>
-        <div className="mt-5 grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="mt-6 grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="rounded-2xl border border-[#242424] bg-[#151515] p-7">
             <div className="space-y-4" aria-hidden="true">
               <div className="h-3 w-2/5 rounded-full bg-white/[0.08]" />
@@ -216,7 +196,6 @@ export function PulseCheckApp({
   );
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [savingFindingId, setSavingFindingId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<FindingFilter>("all");
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const fixtureRunClient = useMemo(
     () => createFixtureRunClient(demoArticle, demoExpected),
@@ -297,7 +276,6 @@ export function PulseCheckApp({
     setError(null);
     setDecisions([]);
     setSelectedFindingId(null);
-    setActiveFilter("all");
     setAnalysisProgress(0);
     setStatus(nextArticle.length === 0 ? "empty" : "ready");
   }
@@ -308,7 +286,6 @@ export function PulseCheckApp({
     setError(null);
     setDecisions([]);
     setSelectedFindingId(null);
-    setActiveFilter("all");
     setAnalysisProgress(0);
     setStatus("ready");
   }
@@ -320,7 +297,6 @@ export function PulseCheckApp({
     setDecisions([]);
     setSelectedFindingId(null);
     setDecisionError(null);
-    setActiveFilter("all");
     setAnalysisProgress(0);
     setStatus("empty");
     onRunIdChange?.(null);
@@ -364,7 +340,6 @@ export function PulseCheckApp({
       setRunView(finished);
       setDecisions([]);
       setSelectedFindingId(firstReviewFindingId(finished.findings));
-      setActiveFilter("all");
       setAnalysisProgress(100);
       setStatus("completed");
       onRunCompleted?.();
@@ -381,16 +356,10 @@ export function PulseCheckApp({
   const showRunView =
     runView !== null &&
     (currentStatus === "completed" || currentStatus === "restoring");
-  const visibleFindings = findings.filter(
-    (finding) => activeFilter === "all" || finding.claimType === activeFilter,
-  );
-  const visibleFindingIds = new Set(
-    visibleFindings.map((finding) => finding.id),
-  );
   const selectedFinding =
-    visibleFindings.find(({ id }) => id === selectedFindingId) ?? null;
+    findings.find(({ id }) => id === selectedFindingId) ?? null;
   const selectedIndex = selectedFinding
-    ? visibleFindings.findIndex(({ id }) => id === selectedFinding.id)
+    ? findings.findIndex(({ id }) => id === selectedFinding.id)
     : -1;
   const selectedDecision = selectedFinding
     ? latestDecisionForFinding(selectedFinding.id, decisions)
@@ -434,27 +403,11 @@ export function PulseCheckApp({
   }
 
   function selectRelativeFinding(offset: number) {
-    if (visibleFindings.length === 0) return;
+    if (findings.length === 0) return;
     const nextIndex =
-      (selectedIndex + offset + visibleFindings.length) %
-      visibleFindings.length;
-    setSelectedFindingId(visibleFindings[nextIndex]?.id ?? null);
+      (selectedIndex + offset + findings.length) % findings.length;
+    setSelectedFindingId(findings[nextIndex]?.id ?? null);
     setDecisionError(null);
-  }
-
-  function handleFilterChange(filter: FindingFilter) {
-    setActiveFilter(filter);
-    setDecisionError(null);
-    if (
-      selectedFindingId &&
-      !findings.some(
-        (finding) =>
-          finding.id === selectedFindingId &&
-          (filter === "all" || finding.claimType === filter),
-      )
-    ) {
-      setSelectedFindingId(null);
-    }
   }
 
   function closeEvidencePanel() {
@@ -487,9 +440,8 @@ export function PulseCheckApp({
                   PulseCheck
                 </h1>
                 <p role="status" className="mt-0.5 text-sm text-[#8e8ea0]">
-                  {activeFilter === "all"
-                    ? `${findings.length} ${findings.length === 1 ? "finding" : "findings"} ready to review.`
-                    : `${visibleFindings.length} of ${findings.length} ${FINDING_FILTERS.find(({ id }) => id === activeFilter)?.label.toLowerCase()} shown.`}
+                  {findings.length} {findings.length === 1 ? "claim" : "claims"}{" "}
+                  checked
                 </p>
               </div>
               <button
@@ -502,47 +454,7 @@ export function PulseCheckApp({
             </div>
 
             <div
-              role="group"
-              aria-label="Filter findings"
-              className="mt-5 flex flex-wrap items-center gap-1.5"
-            >
-              {FINDING_FILTERS.map(({ id, label }) => {
-                const count =
-                  id === "all"
-                    ? findings.length
-                    : findings.filter(({ claimType }) => claimType === id)
-                        .length;
-                return (
-                  <button
-                    type="button"
-                    key={id}
-                    aria-label={`${label}: ${count} ${count === 1 ? "finding" : "findings"}`}
-                    aria-pressed={activeFilter === id}
-                    onClick={() => handleFilterChange(id)}
-                    className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-white/60 ${
-                      activeFilter === id
-                        ? "bg-[#2f2f2f] font-medium text-[#f3f3f3]"
-                        : "text-[#9b9b9b] hover:bg-white/5"
-                    }`}
-                  >
-                    <span>{label}</span>
-                    <span
-                      aria-hidden="true"
-                      className={`text-xs ${
-                        activeFilter === id
-                          ? "text-[#c6c6c6]"
-                          : "text-[#6f6f78]"
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div
-              className={`mt-5 grid min-h-0 flex-1 gap-5 ${
+              className={`mt-6 grid min-h-0 flex-1 gap-5 ${
                 selectedFinding
                   ? "lg:grid-cols-[minmax(0,1fr)_340px]"
                   : "grid-cols-1"
@@ -552,7 +464,6 @@ export function PulseCheckApp({
                 <ArticleView
                   originalText={runView.document.originalText}
                   findings={findings}
-                  visibleFindingIds={visibleFindingIds}
                   decisions={decisions}
                   selectedFindingId={selectedFindingId}
                   onSelectFinding={(findingId) => {
@@ -568,7 +479,7 @@ export function PulseCheckApp({
                   finding={selectedFinding}
                   decision={selectedDecision}
                   position={selectedIndex + 1}
-                  total={visibleFindings.length}
+                  total={findings.length}
                   isSaving={savingFindingId === selectedFinding.id}
                   error={decisionError}
                   onDecision={(decision) => void handleDecision(decision)}
@@ -586,11 +497,12 @@ export function PulseCheckApp({
         <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-5">
           <div className="w-full max-w-[720px] pb-16">
             <h1 className="text-center text-[28px] font-medium tracking-tight text-[#f3f3f3] sm:text-[32px]">
-              Make any article current.
+              Fact-check any article. Keep it current.
             </h1>
 
             <p className="mt-2 text-center text-sm text-[#9b9b9b]">
-              Verify claims, update what changed, and cite every edit.
+              Check claims against current sources and apply precise, cited
+              updates.
             </p>
 
             <div className="mt-6">
@@ -604,21 +516,6 @@ export function PulseCheckApp({
                 onReset={handleReset}
               />
             </div>
-
-            <ul
-              aria-label="PulseCheck capabilities"
-              className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-[#8e8ea0]"
-            >
-              {CAPABILITIES.map((capability) => (
-                <li key={capability} className="flex items-center gap-2">
-                  <span
-                    aria-hidden="true"
-                    className="h-1 w-1 rounded-full bg-[#b4b4b4]"
-                  />
-                  {capability}
-                </li>
-              ))}
-            </ul>
 
             <p className="mt-3 text-center text-xs leading-5 text-[#777780]">
               Checks are public. Don&apos;t paste sensitive information.

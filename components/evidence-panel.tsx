@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-import { getVerdictLabel, getVerdictTextClass } from "@/components/finding-dot";
+import { getVerdictLabel } from "@/components/finding-dot";
 import type { EditDecision, Finding } from "@/lib/contracts";
 
 type EvidencePanelProps = {
@@ -47,9 +47,29 @@ export function EvidencePanel({
       className="pulsecheck-panel-enter min-h-0 overflow-y-auto rounded-2xl border border-[#303030] bg-[#212121] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.32)]"
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-[#8e8ea0]">
-          Finding {position} of {total}
-        </p>
+        <div className="flex items-center gap-1 text-xs text-[#8e8ea0]">
+          <button
+            type="button"
+            onClick={onPrevious}
+            disabled={total < 2}
+            aria-label="Previous finding"
+            className="flex h-7 w-7 items-center justify-center rounded-full outline-none hover:bg-white/[0.06] hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-30"
+          >
+            ←
+          </button>
+          <span className="min-w-14 text-center">
+            {position} of {total}
+          </span>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={total < 2}
+            aria-label="Next finding"
+            className="flex h-7 w-7 items-center justify-center rounded-full outline-none hover:bg-white/[0.06] hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-30"
+          >
+            →
+          </button>
+        </div>
         <button
           ref={closeButtonRef}
           type="button"
@@ -61,13 +81,14 @@ export function EvidencePanel({
         </button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span
-          className={`text-sm font-semibold ${getVerdictTextClass(finding.verdict)}`}
-        >
+      <div className="mt-4 flex flex-wrap items-center gap-1.5">
+        <span className="text-sm font-semibold text-[#ececec]">
           {getVerdictLabel(finding.verdict)}
         </span>
-        <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs capitalize text-[#b4b4b4]">
+        <span aria-hidden="true" className="text-xs text-[#6f6f78]">
+          ·
+        </span>
+        <span className="text-xs text-[#9b9b9b]">
           {finding.confidence} confidence
         </span>
       </div>
@@ -161,16 +182,6 @@ export function EvidencePanel({
           >
             Reject
           </button>
-          {decision ? (
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={() => onDecision("restored")}
-              className="rounded-full px-3 py-2 text-sm text-[#9b9b9b] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/5 hover:text-white active:scale-95 focus-visible:ring-2 focus-visible:ring-white/60 disabled:translate-y-0 disabled:opacity-50"
-            >
-              Restore
-            </button>
-          ) : null}
         </div>
       </div>
 
@@ -188,25 +199,6 @@ export function EvidencePanel({
           {error}
         </p>
       ) : null}
-
-      <div className="mt-5 flex items-center justify-between border-t border-[#343434] pt-4">
-        <button
-          type="button"
-          onClick={onPrevious}
-          disabled={total < 2}
-          className="rounded-lg px-3 py-2 text-sm text-[#b4b4b4] outline-none transition-all duration-200 hover:-translate-x-0.5 hover:bg-white/5 hover:text-white active:scale-95 focus-visible:ring-2 focus-visible:ring-white/60 disabled:translate-x-0 disabled:opacity-40"
-        >
-          Previous
-        </button>
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={total < 2}
-          className="rounded-lg px-3 py-2 text-sm text-[#b4b4b4] outline-none transition-all duration-200 hover:translate-x-0.5 hover:bg-white/5 hover:text-white active:scale-95 focus-visible:ring-2 focus-visible:ring-white/60 disabled:translate-x-0 disabled:opacity-40"
-        >
-          Next
-        </button>
-      </div>
     </aside>
   );
 }

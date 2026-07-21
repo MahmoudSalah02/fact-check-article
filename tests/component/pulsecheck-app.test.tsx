@@ -72,14 +72,13 @@ describe("F1 PulseCheck experience", () => {
     expect(screen.getByText("ChatGPT")).toBeVisible();
     expect(screen.getByText("Codex")).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Make any article current." }),
+      screen.getByRole("heading", {
+        name: "Fact-check any article. Keep it current.",
+      }),
     ).toBeVisible();
     expect(
-      screen.getByText(/verify claims, update what changed/i),
+      screen.getByText(/check claims against current sources/i),
     ).toBeVisible();
-    expect(
-      screen.getByRole("list", { name: "PulseCheck capabilities" }),
-    ).toHaveTextContent("Fact-check claimsRefresh old factsValidate forecasts");
     expect(
       screen.getByText("Concept prototype; not an official OpenAI product."),
     ).toBeVisible();
@@ -141,7 +140,9 @@ describe("F1 PulseCheck experience", () => {
     expect(await screen.findByText("Opening check…")).toBeVisible();
     expect(screen.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
     expect(
-      screen.queryByRole("heading", { name: "Make any article current." }),
+      screen.queryByRole("heading", {
+        name: "Fact-check any article. Keep it current.",
+      }),
     ).not.toBeInTheDocument();
   });
 
@@ -269,17 +270,13 @@ describe("F1 PulseCheck experience", () => {
     await user.click(screen.getByRole("button", { name: "Use demo" }));
     await user.click(screen.getByRole("button", { name: "Start check" }));
 
-    expect(
-      await screen.findByText("9 findings ready to review."),
-    ).toBeVisible();
+    expect(await screen.findByText("9 claims checked")).toBeVisible();
     expect(screen.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
     expect(screen.getByRole("button", { name: "New check" })).toBeVisible();
     expect(
       screen.getByRole("complementary", { name: "Evidence panel" }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("list", { name: "Finding legend" }),
-    ).toHaveTextContent("VerifiedOutdatedContradictedNeeds evidenceOpinion");
+    expect(screen.queryByRole("list", { name: "Finding legend" })).toBeNull();
 
     expect(
       screen.getByRole("region", { name: "Checked article" }),
@@ -307,7 +304,9 @@ describe("F1 PulseCheck experience", () => {
     await user.click(screen.getByRole("button", { name: "Clear article" }));
 
     expect(
-      screen.getByRole("heading", { name: "Make any article current." }),
+      screen.getByRole("heading", {
+        name: "Fact-check any article. Keep it current.",
+      }),
     ).toBeVisible();
     expect(screen.getByRole("textbox", { name: "Article text" })).toHaveValue(
       "",

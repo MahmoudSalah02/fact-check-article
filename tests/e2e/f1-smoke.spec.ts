@@ -6,10 +6,12 @@ test("prepared article travels through the F1 product flow", async ({
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: "Make any article current." }),
+    page.getByRole("heading", {
+      name: "Fact-check any article. Keep it current.",
+    }),
   ).toBeVisible();
   await expect(
-    page.getByText(/verify claims, update what changed/i),
+    page.getByText(/check claims against current sources/i),
   ).toBeVisible();
   await expect(page.getByText("Codex")).toBeVisible();
   const sidebar = page.getByRole("complementary", {
@@ -20,7 +22,7 @@ test("prepared article travels through the F1 product flow", async ({
   await page.getByRole("button", { name: "Use demo" }).click();
   await page.getByRole("button", { name: "Start check" }).click();
 
-  await expect(page.getByText("9 findings ready to review.")).toBeVisible();
+  await expect(page.getByText("9 claims checked")).toBeVisible();
   await expect(page.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
   const roleFinding = page.getByRole("button", {
     name: /Outdated: Jennifer Granholm is the U\.S\. secretary of energy/,
@@ -45,8 +47,8 @@ test("prepared article travels through the F1 product flow", async ({
   await expect(page.locator("del")).toContainText("Jennifer Granholm");
   await expect(page.locator("ins")).toContainText("Chris Wright");
 
-  await page.getByRole("button", { name: "original", exact: true }).click();
+  await page.getByRole("button", { name: "Reject" }).click();
   await expect(page.locator("del")).toHaveCount(0);
-  await page.getByRole("button", { name: "updated", exact: true }).click();
+  await page.getByRole("button", { name: "Accept" }).click();
   await expect(page.locator("ins")).toContainText("Chris Wright");
 });

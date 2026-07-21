@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
-import { FindingDot, FindingLegend } from "@/components/finding-dot";
+import { FindingDot } from "@/components/finding-dot";
 import type { EditDecision, Finding } from "@/lib/contracts";
 import { deriveUpdatedText } from "@/lib/domain/derive-updated-text";
 import { toRenderSegments } from "@/lib/domain/render-segments";
@@ -8,7 +8,6 @@ import { toRenderSegments } from "@/lib/domain/render-segments";
 type ArticleViewProps = {
   originalText: string;
   findings: Finding[];
-  visibleFindingIds: ReadonlySet<string>;
   decisions: EditDecision[];
   selectedFindingId: string | null;
   onSelectFinding: (findingId: string) => void;
@@ -31,14 +30,10 @@ function latestDecisionByFinding(decisions: EditDecision[]) {
 export function ArticleView({
   originalText,
   findings,
-  visibleFindingIds,
   decisions,
   selectedFindingId,
   onSelectFinding,
 }: ArticleViewProps) {
-  const [requestedView, setRequestedView] = useState<"original" | "updated">(
-    "updated",
-  );
   const segments = useMemo(
     () => toRenderSegments(originalText, findings),
     [findings, originalText],
@@ -51,58 +46,11 @@ export function ArticleView({
     () => deriveUpdatedText(originalText, findings, decisions),
     [decisions, findings, originalText],
   );
-  const acceptedCount = findings.filter(
-    (finding) =>
-      finding.replacement !== null &&
-      decisionsByFinding.get(finding.id)?.decision === "accepted",
-  ).length;
-  const view = acceptedCount === 0 ? "original" : requestedView;
-
   return (
     <section aria-label="Checked article" className="min-h-0">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div
-          role="group"
-          aria-label="Article version"
-          className="flex rounded-full bg-white/5 p-1 text-xs"
-        >
-          {(["original", "updated"] as const).map((option) => (
-            <button
-              type="button"
-              key={option}
-              aria-pressed={view === option}
-              aria-describedby={
-                option === "updated" ? "updated-version-status" : undefined
-              }
-              disabled={option === "updated" && acceptedCount === 0}
-              onClick={() => setRequestedView(option)}
-              className={`rounded-full px-3 py-1.5 capitalize outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-40 ${
-                view === option
-                  ? "bg-[#2f2f2f] text-white"
-                  : "text-[#8e8ea0] hover:text-white"
-              }`}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-        <div className="max-w-[420px] text-right text-xs leading-5 text-[#8e8ea0]">
-          {visibleFindingIds.size === 0 ? (
-            <p>No findings in this category</p>
-          ) : (
-            <FindingLegend />
-          )}
-          <p id="updated-version-status" aria-live="polite">
-            {acceptedCount === 0
-              ? "Accept a correction to create the Updated version"
-              : `${acceptedCount} accepted ${acceptedCount === 1 ? "edit" : "edits"} in Updated`}
-          </p>
-        </div>
-      </div>
-
       <div
         data-testid="article-text"
-        data-version={view}
+        data-version="current"
         data-updated-text={updatedText}
         className="text-[15px] leading-8 whitespace-pre-wrap text-[#d8d8d8]"
       >
@@ -112,17 +60,9 @@ export function ArticleView({
           }
 
           const { finding } = segment;
-          const visible = visibleFindingIds.has(finding.id);
           const decision = decisionsByFinding.get(finding.id)?.decision;
           const accepted =
-            view === "updated" &&
-            decision === "accepted" &&
-            finding.replacement !== null;
-          const passive =
-            finding.verdict === "unsupported" ||
-            finding.verdict === "unresolved" ||
-            finding.verdict === "opinion" ||
-            finding.confidence === "low";
+            decision === "accepted" && finding.replacement !== null;
           const renderedText = accepted ? (
             <>
               <del className="text-red-300 decoration-red-400/80">
@@ -136,15 +76,8 @@ export function ArticleView({
             segment.text
           );
 
-          if (!visible) {
-            return <span key={finding.id}>{renderedText}</span>;
-          }
-
           return (
-            <span
-              key={finding.id}
-              className={passive ? "decoration-dotted underline-offset-4" : ""}
-            >
+            <span key={finding.id}>
               <span
                 role="button"
                 tabIndex={0}
