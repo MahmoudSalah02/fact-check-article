@@ -21,6 +21,10 @@ describe("F4 analysis prompt", () => {
       "consulted url is not proof",
       "what each selected citation supports",
       "smallest defensible replacement",
+      "concise inline qualification",
+      "read naturally between prefixtext and suffixtext",
+      "preserve the author's subject, tense, voice",
+      "use unsupported or unresolved instead of needs_context",
       "low-confidence",
       "internal contradictions",
     ]) {

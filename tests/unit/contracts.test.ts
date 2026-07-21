@@ -12,6 +12,9 @@ import {
 import { parseDemoFixture } from "@/lib/analysis/fixture-provider";
 
 const validFinding = parseDemoFixture(demoExpected).output.findings[1];
+const needsContextFinding = parseDemoFixture(demoExpected).output.findings.find(
+  ({ verdict }) => verdict === "needs_context",
+)!;
 
 describe("finding contracts", () => {
   it("accepts the audited demo fixture", () => {
@@ -60,6 +63,15 @@ describe("finding contracts", () => {
     expect(() =>
       AnalysisFindingSchema.parse({ ...validFinding, sources: [] }),
     ).toThrow(/replacement/);
+  });
+
+  it("requires needs_context findings to include an inline replacement", () => {
+    expect(() =>
+      AnalysisFindingSchema.parse({
+        ...needsContextFinding,
+        replacement: null,
+      }),
+    ).toThrow(/inline replacement/);
   });
 
   it("rejects non-HTTPS sources", () => {

@@ -72,7 +72,7 @@ A replacement is allowed only when all of these are true:
 3. At least one supporting citation passed validation.
 4. The quoted passage resolves to one unambiguous span in the original article.
 
-Unsupported claims, unresolved claims, opinions, verified claims, and lower-confidence findings never receive an invented correction.
+Every `needs_context` finding includes a concise replacement that reads naturally in the surrounding paragraph. If the evidence cannot support that inline revision with high confidence, the server keeps it as an `unresolved` flag instead. Unsupported claims, unresolved claims, opinions, verified claims, and lower-confidence findings never receive an invented correction.
 
 ## Research and validation
 

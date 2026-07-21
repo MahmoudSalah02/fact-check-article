@@ -381,11 +381,39 @@ describe("M3 completion on the real failing trace", () => {
         finding.sourceText,
       );
     }
-    // f4 and f6 (medium confidence) lost their replacement; the five
-    // high-confidence editable findings kept theirs.
+    // f4 and f6 (medium confidence) become unresolved flags; the five
+    // high-confidence editable findings keep their inline revisions.
     expect(
       findings.filter((finding) => finding.replacement !== null),
     ).toHaveLength(5);
+    expect(
+      findings
+        .filter((finding) => finding.verdict === "needs_context")
+        .every((finding) => finding.replacement !== null),
+    ).toBe(true);
+  });
+
+  it("degrades non-actionable needs_context findings to unresolved", () => {
+    const normalized = normalizeReplacements(RAW) as {
+      findings: Array<{
+        id: string;
+        verdict: string;
+        replacement: string | null;
+      }>;
+    };
+
+    expect(normalized.findings.find(({ id }) => id === "f4")).toMatchObject({
+      verdict: "unresolved",
+      replacement: null,
+    });
+    expect(normalized.findings.find(({ id }) => id === "f6")).toMatchObject({
+      verdict: "unresolved",
+      replacement: null,
+    });
+    expect(normalized.findings.find(({ id }) => id === "f3")).toMatchObject({
+      verdict: "needs_context",
+      replacement: expect.any(String),
+    });
   });
 });
 

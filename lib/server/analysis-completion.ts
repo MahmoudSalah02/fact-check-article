@@ -73,8 +73,9 @@ function findingEvidenceOk(
  * Drop replacements the model shouldn't have proposed. The replacement policy
  * (high confidence + editable verdict + cited) is a cross-field rule Structured
  * Outputs can't enforce, so the model occasionally suggests an edit on a
- * medium/low-confidence finding. We null the unsafe edit and keep the finding as
- * a flag — exactly what the policy intends.
+ * medium/low-confidence finding. A needs_context verdict is useful only when it
+ * can add context in place; otherwise degrade it to unresolved and keep it as a
+ * non-editable flag.
  */
 export function normalizeReplacements(rawOutput: unknown): unknown {
   if (typeof rawOutput !== "object" || rawOutput === null) return rawOutput;
@@ -86,6 +87,15 @@ export function normalizeReplacements(rawOutput: unknown): unknown {
     findings: record.findings.map((raw) => {
       if (typeof raw !== "object" || raw === null) return raw;
       const finding = raw as Record<string, unknown>;
+      const hasSafeInlineContextEdit =
+        finding.confidence === "high" &&
+        typeof finding.replacement === "string" &&
+        finding.replacement.trim().length > 0 &&
+        Array.isArray(finding.sources) &&
+        finding.sources.length > 0;
+      if (finding.verdict === "needs_context" && !hasSafeInlineContextEdit) {
+        return { ...finding, verdict: "unresolved", replacement: null };
+      }
       if (finding.replacement == null) return finding;
       const allowed =
         finding.confidence === "high" &&
