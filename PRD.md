@@ -28,7 +28,7 @@ The shell contains **ChatGPT**, **Codex**, and **PulseCheck** navigation. Only P
 
 ### Visual direction
 
-> **Status update (July 19, 2026):** the shipped F1 direction supersedes the palette bullets below. PulseCheck now renders inside a full ChatGPT-native dark shell (`#0d0d0d`, system font stack): a left sidebar (ChatGPT wordmark, New chat, PulseCheck active, Library/Projects/Scheduled/Plugins, Recents, user chip), a centered composer-first home ("What still holds up today?"), and a results layout that morphs into a Scheduled-style feature page. The Codex top-nav entry is gone. Everything else in this section — the five states, margin dots, and evidence panel — remains the binding spec for F3, restyled to the dark tokens.
+> **Status update (July 21, 2026):** PulseCheck uses one direct review loop inside a ChatGPT-native dark shell: paste an article, inspect explicit claim markers, then Accept or Reject in the evidence panel. There are no category filters, color legend, or Original/Updated mode. Accepted corrections render immediately in place; rejecting one restores the immutable original wording.
 
 - OpenAI-inspired black, white, and warm-gray interface
 - Minimal typography, thin borders, generous whitespace
@@ -38,11 +38,11 @@ The shell contains **ChatGPT**, **Codex**, and **PulseCheck** navigation. Only P
 
 ### Empty state
 
-- PulseCheck title
-- Large editor with “Paste an article to check…”
-- **Check article**
-- **Load demo article**
-- Quiet disclosure below the button: “Your article is sent to OpenAI for research. Do not paste secrets or information you are not authorized to process.”
+- Headline: **“Fact-check any article. Keep it current.”**
+- One-line explanation: **“Check claims against current sources and apply precise, cited updates.”**
+- Large editor with “Paste an article or upload a file”
+- Compact **Use demo** and start controls
+- Quiet disclosure: **“Checks are public. Don’t paste sensitive information.”**
 
 ### Checking state
 
@@ -55,22 +55,23 @@ Keep the article visible and stable. Disable editing and show:
 - Show the exact pasted article.
 - Verified text remains visually unchanged.
 - Corrections use red strikethrough and muted-green insertion.
-- Small dots appear in the right margin beside investigated text.
-- Clicking a dot or edit opens a right-side evidence panel.
+- Compact semantic markers appear beside investigated text.
+- Clicking a marker or the claim opens a right-side evidence panel.
 - Users can accept or reject edits.
-- Users can switch between **Original** and **Updated**.
+- Accepted edits immediately show the original as strikethrough plus the cited replacement; Reject reverses the change.
 
-### Margin dots
+### Claim markers
 
-| Dot | Meaning |
+| Marker | Meaning |
 |---|---|
-| Green | Verified |
-| Red | Contradicted |
-| Blue | Outdated |
-| Amber | Unsupported, unresolved, or needs context |
-| Gray | Opinion |
+| ✓ | Verified |
+| ↻ | Outdated |
+| × | Contradicted |
+| ? | Unsupported or unresolved |
+| + | Needs context |
+| ≈ | Opinion |
 
-Dot color always represents the verdict, so a forecast cannot conflict with a verdict color. Forecast findings show a textual `Forecast · <status>` label in the evidence panel. Dots are small, accessible, aligned with the relevant text, and never rely on color alone: each has an `aria-label`, keyboard focus, and visible hover/focus label. Click or keyboard activation opens the evidence panel.
+Markers are neutral rather than color-coded and use both a recognizable symbol and a visible hover/focus label. Each has a descriptive `aria-label`, keyboard focus, and visible focus ring. Forecast findings keep the textual `Forecast · <status>` label in the evidence panel.
 
 ### Evidence panel
 
@@ -137,10 +138,10 @@ Expected results live in [fixtures/demo-expected.json](fixtures/demo-expected.js
 | LBNL currently estimates 6.7%–12.0% by 2028 | Outdated forecast; `revised` | Update to LBNL's June 2026 range for 2030 |
 | Forecast never updated | Contradicted | Correct |
 | Newer analysis says only 2% | Contradicted | Correct to the published 2030 range/reference case |
-| Every U.S. project fully funded | Unsupported | Amber dot; no invented replacement |
+| Every U.S. project fully funded | Unsupported | `?` marker; no invented replacement |
 | Will consume exactly 649 TWh | Needs context | Identify 649 TWh as a reference case within a wider range |
-| All planned facilities operating by then | Unresolved forecast; `pending` | Amber dot; panel shows `Forecast · pending`; no factual correction |
-| Unquestionably the biggest threat | Opinion | Gray dot; leave alone |
+| All planned facilities operating by then | Unresolved forecast; `pending` | `?` marker; panel shows `Forecast · pending`; no factual correction |
+| Unquestionably the biggest threat | Opinion | `≈` marker; leave alone |
 
 The fixture is intentionally dense so one paragraph exercises the entire product. Its current-role claim is checked against the Department of Energy, and its forecast values are frozen to LBNL's June 2026 update. [DOE leadership](https://www.energy.gov/leadership-organization), [LBNL 2025 Update, published June 2026](https://eta-publications.lbl.gov/publications/united-states-data-center-energy-2025), [EIA demand history](https://www.eia.gov/todayinenergy/detail.php?id=65264)
 
@@ -152,7 +153,7 @@ The fixture is intentionally dense so one paragraph exercises the entire product
 4. Show the forecast being revised rather than called a lie.
 5. Show an unsupported claim receiving no invented correction.
 6. Show the opinion being left alone.
-7. Accept one edit and compare Original with Updated.
+7. Accept one edit and show the surgical correction appear in place; reject it to return to the original wording.
 
 Close with:
 
@@ -167,10 +168,9 @@ Close with:
 - Load demo fixture
 - Check article
 - Exact-span annotations
-- Tracked changes and margin dots
+- Tracked changes and semantic claim markers
 - Evidence panel with clickable sources
 - Accept/reject
-- Original/Updated toggle
 - Loading, error, and no-claims states
 - Automatic anonymous session with optional magic-link sign-in
 - Persistent documents, runs, findings, sources, and edit decisions
@@ -553,6 +553,7 @@ The entire F-track (F1–F4) and M1–M2 are merged to `main`. **Everything rema
 **Scope notes recorded at merge time:**
 
 - **M2 delivered** the migration (`documents`, `analysis_runs`, `findings`, `sources`, `edit_decisions` with RLS, immutable original text, `SECURITY DEFINER` RPCs), the three Supabase clients, generated types, anonymous auth, the decision endpoint, 15 pgTAP security tests, and a durable Playwright spec. Deviations: repository-adapter classes were replaced by a function-based persistence layer (`lib/supabase/persistence.ts`); **`webhook_events` and quota enforcement deferred to M3**; identity linking deferred; seeds intentionally empty. `pnpm build` runs webpack, not Turbopack, due to an upstream Turbopack + Zod v4 bug (see README).
+- **Hackathon gallery override (July 21, 2026):** invisible anonymous sessions may read all completed documents, runs, findings, and sources through RLS-backed APIs. Creation still requires a valid anonymous bearer token, direct table writes remain blocked, and edit decisions are private per viewer. The prepared fixture reuses one canonical completed run so Recents stays clean. The UI labels checks as public and must not imply that pasted text is private.
 - **F1** shipped the ChatGPT-native shell and morphing two-state experience, and pulled forward part of F5: `HttpRunClient`, anonymous session bootstrap, and `?run=` restore. Supabase mode is served by `components/durable-pulsecheck-app.tsx`; fake mode by `components/pulsecheck-app.tsx` (`app/page.tsx` branches on `DATA_BACKEND`). `article-composer.tsx` replaced `article-editor.tsx`.
 - **F2** delivered the deterministic engine in `lib/domain/`: `resolve-spans.ts`, `derive-updated-text.ts`, plus render segmentation, with the round-trip invariant enforced.
 - **F3** delivered inline findings + evidence UI: `components/article-view.tsx`, `evidence-panel.tsx`, `finding-dot.tsx`, wired through `durable-pulsecheck-app.tsx`/`pulsecheck-app.tsx`; the decision endpoint persists accept/reject/restore.
@@ -683,7 +684,7 @@ Both developers implement with AI models and review each other's PRs. These rule
 
 ### M2 — Mahmoud: Supabase, anonymous auth, and row isolation
 
-> ✅ **Completed and merged** (PR #11). Verified: migration applies from zero (`pnpm supabase db reset`), 15 pgTAP RLS/security tests pass, and the durable E2E proves refresh-survival plus cross-user isolation through the real app. See the delivery-status scope notes for the recorded deviations (function-based persistence layer instead of repository classes; `webhook_events`, quota, and identity linking deferred; webpack build workaround).
+> ✅ **Completed and merged** (PR #11), then adapted for the shared hackathon gallery described in Delivery status. The current gate rebuilds from zero, passes 27 pgTAP assertions, preserves private per-viewer decisions, and proves refresh plus cross-session history through the real app. The owner-isolation requirements below document the original M2 target; the gallery override supersedes them for read access only.
 
 **Start gate:** M1 is merged. This runs in parallel with F1 and then F2.
 

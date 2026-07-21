@@ -23,9 +23,9 @@ async function renderCompletedApp() {
   const view = render(
     <PulseCheckApp demoArticle={demoArticle} demoExpected={demoExpected} />,
   );
-  await user.click(screen.getByRole("button", { name: "Load demo article" }));
-  await user.click(screen.getByRole("button", { name: "Check article" }));
-  await screen.findByText("9 findings ready to review.");
+  await user.click(screen.getByRole("button", { name: "Use demo" }));
+  await user.click(screen.getByRole("button", { name: "Start check" }));
+  await screen.findByText("9 claims checked");
   return { user, ...view };
 }
 
@@ -69,7 +69,7 @@ function renderMetadataPanel(finding: Finding) {
 }
 
 describe("F3 inline findings experience", () => {
-  it("renders all verdicts as accessible, keyboard-operable dots", async () => {
+  it("renders all verdicts as accessible, keyboard-operable markers", async () => {
     const { user } = await renderCompletedApp();
     const expectedLabels = [
       "Verified:",
@@ -107,9 +107,12 @@ describe("F3 inline findings experience", () => {
     expect(outdated).toHaveAttribute("aria-pressed", "true");
     expect(
       screen.getByRole("button", { name: "Close evidence panel" }),
-    ).toHaveFocus();
+    ).toBeVisible();
+    expect(outdated).toHaveFocus();
 
-    await user.keyboard("{Enter}");
+    await user.click(
+      screen.getByRole("button", { name: "Close evidence panel" }),
+    );
     await waitFor(() => expect(outdated).toHaveFocus());
   });
 
@@ -160,58 +163,29 @@ describe("F3 inline findings experience", () => {
     expect(source).toHaveAttribute("rel", "noopener noreferrer");
   });
 
-  it("explains why Updated matches Original until an edit is accepted", async () => {
+  it("starts with the original wording and no version-mode controls", async () => {
     await renderCompletedApp();
 
     expect(screen.getByTestId("article-text")).toHaveAttribute(
       "data-version",
-      "original",
+      "current",
     );
-    expect(screen.getByRole("button", { name: "updated" })).toBeDisabled();
-    expect(
-      screen.getByText("Accept a correction to create the Updated version"),
-    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "updated" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "original" })).toBeNull();
+    expect(document.querySelector("del")).toBeNull();
   });
 
-  it("filters inline findings with counts and category-scoped navigation", async () => {
-    const { user } = await renderCompletedApp();
-    const dotName =
+  it("keeps every checked claim in one continuous review", async () => {
+    await renderCompletedApp();
+    const markerName =
       /^(Verified|Outdated|Contradicted|Unsupported|Needs context|Unresolved|Opinion):/;
 
-    await user.click(screen.getByRole("button", { name: "Facts: 5 findings" }));
-    expect(screen.getByText("5 of 9 facts shown.")).toBeVisible();
-    expect(screen.getAllByRole("button", { name: dotName })).toHaveLength(5);
-
-    await user.click(
-      screen.getByRole("button", { name: "Forecasts: 3 findings" }),
-    );
-    expect(screen.getByText("3 of 9 forecasts shown.")).toBeVisible();
-    expect(screen.getAllByRole("button", { name: dotName })).toHaveLength(3);
-
-    await user.click(
-      screen.getByRole("button", {
-        name: /Outdated: Lawrence Berkeley National Laboratory/,
-      }),
-    );
-    expect(screen.getByText("Finding 1 of 3")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByText("Finding 2 of 3")).toBeVisible();
-
-    await user.click(
-      screen.getByRole("button", { name: "Opinions: 1 finding" }),
-    );
-    expect(screen.getByText("1 of 9 opinions shown.")).toBeVisible();
-    expect(screen.getAllByRole("button", { name: dotName })).toHaveLength(1);
-    expect(
-      screen.queryByRole("complementary", { name: "Evidence panel" }),
-    ).toBeNull();
-
-    await user.click(screen.getByRole("button", { name: "All: 9 findings" }));
-    expect(screen.getByText("9 findings ready to review.")).toBeVisible();
-    expect(screen.getAllByRole("button", { name: dotName })).toHaveLength(9);
+    expect(screen.getByText("9 claims checked")).toBeVisible();
+    expect(screen.getAllByRole("button", { name: markerName })).toHaveLength(9);
+    expect(screen.queryByRole("group", { name: "Filter findings" })).toBeNull();
   });
 
-  it("keeps accepted edits in Updated while filtering annotations", async () => {
+  it("applies an accepted correction directly in the article", async () => {
     const { user, container } = await renderCompletedApp();
     await user.click(
       screen.getByRole("button", {
@@ -219,9 +193,6 @@ describe("F3 inline findings experience", () => {
       }),
     );
     await user.click(screen.getByRole("button", { name: "Accept" }));
-    await user.click(
-      screen.getByRole("button", { name: "Forecasts: 3 findings" }),
-    );
 
     expect(screen.getByTestId("article-text").dataset.updatedText).toBe(
       demoArticle.replace(
@@ -237,7 +208,7 @@ describe("F3 inline findings experience", () => {
     );
   });
 
-  it("accepts, rejects, restores, and toggles Original/Updated exactly", async () => {
+  it("accepts and rejects the same correction in place", async () => {
     const { user, container } = await renderCompletedApp();
     await user.click(
       screen.getByRole("button", {
@@ -258,14 +229,7 @@ describe("F3 inline findings experience", () => {
     expect(container.querySelector("ins")).toHaveTextContent(
       "Chris Wright is the U.S. secretary of energy",
     );
-    expect(article).toHaveAttribute("data-version", "updated");
-    expect(screen.getByText("1 accepted edit in Updated")).toBeVisible();
-
-    await user.click(screen.getByRole("button", { name: "original" }));
-    expect(container.querySelector("del")).not.toBeInTheDocument();
-    expect(article).toHaveAttribute("data-version", "original");
-
-    await user.click(screen.getByRole("button", { name: "updated" }));
+    expect(article).toHaveAttribute("data-version", "current");
     await user.click(screen.getByRole("button", { name: "Reject" }));
     expect(container.querySelector("del")).not.toBeInTheDocument();
     expect(article.dataset.updatedText).toBe(demoArticle);
@@ -276,11 +240,13 @@ describe("F3 inline findings experience", () => {
       "Decision: rejected",
     );
 
-    await user.click(screen.getByRole("button", { name: "Restore" }));
+    await user.click(screen.getByRole("button", { name: "Accept" }));
     expect(within(panel).getByRole("status")).toHaveTextContent(
-      "Decision: restored",
+      "Decision: accepted",
     );
-    expect(article.dataset.updatedText).toBe(demoArticle);
+    expect(container.querySelector("del")).toHaveTextContent(
+      "Jennifer Granholm is the U.S. secretary of energy",
+    );
   });
 
   it("navigates findings and offers decisions without inventing false edits", async () => {
@@ -290,10 +256,10 @@ describe("F3 inline findings experience", () => {
         name: /Outdated: Jennifer Granholm/,
       }),
     );
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Next finding" }));
     expect(screen.getByText("Forecast · revised")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Previous" }));
-    expect(screen.getByText("Finding 2 of 9")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Previous finding" }));
+    expect(screen.getByText("2 of 9")).toBeVisible();
 
     await user.click(
       screen.getByRole("button", {
@@ -311,7 +277,7 @@ describe("F3 inline findings experience", () => {
     expect(within(panel).getByRole("status")).toHaveTextContent(
       "Decision: accepted",
     );
-    expect(screen.getByRole("button", { name: "updated" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "updated" })).toBeNull();
   });
 
   it("closes the panel and retains a calm article-first layout", async () => {

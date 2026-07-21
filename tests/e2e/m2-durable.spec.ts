@@ -5,29 +5,39 @@ test.skip(
   "requires the local or Preview Supabase backend",
 );
 
-test("a run survives refresh and remains isolated from another browser", async ({
+test("a run survives refresh and appears in the shared recent gallery", async ({
   browser,
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Load demo article" }).click();
-  await page.getByRole("button", { name: "Check article" }).click();
-  await expect(page.getByText("9 findings ready to review.")).toBeVisible();
+  await page.getByRole("button", { name: "Use demo" }).click();
+  await page.getByRole("button", { name: "Start check" }).click();
+  await expect(page.getByText("9 claims checked")).toBeVisible();
   await expect(page).toHaveURL(/\?run=[0-9a-f-]{36}$/);
 
   const durableUrl = page.url();
   await page.reload();
-  await expect(page.getByText("9 findings ready to review.")).toBeVisible();
+  await expect(page.getByText("9 claims checked")).toBeVisible();
+
+  await page.getByRole("button", { name: "New check" }).click();
+  await page.getByRole("button", { name: "Use demo" }).click();
+  await page.getByRole("button", { name: "Start check" }).click();
+  await expect(page.getByText("9 claims checked")).toBeVisible();
+  await expect(page).toHaveURL(durableUrl);
 
   const isolatedContext = await browser.newContext();
   const isolatedPage = await isolatedContext.newPage();
-  await isolatedPage.goto(durableUrl);
-  // A second anonymous user must not see the run: RLS denies the read, the
-  // restore fails with 404, and the app surfaces the not-found error.
-  await expect(
-    isolatedPage
-      .getByRole("alert")
-      .filter({ hasText: "We couldn't find that saved analysis." }),
-  ).toBeVisible();
+  await isolatedPage.goto("/");
+  await isolatedPage
+    .getByRole("button", { name: /U\.S\. electricity demand had remained/ })
+    .first()
+    .click();
+  await expect(isolatedPage.getByText("9 claims checked")).toBeVisible();
+  await expect(isolatedPage).toHaveURL(durableUrl);
+
+  await isolatedPage.getByRole("button", { name: "Reject" }).click();
+  await expect(isolatedPage.getByText("Decision: rejected")).toBeVisible();
+  await isolatedPage.reload();
+  await expect(isolatedPage.getByText("Decision: rejected")).toBeVisible();
   await isolatedContext.close();
 });

@@ -14,6 +14,7 @@ import {
   SetDecisionResultSchema,
   type EditDecision,
   type Finding,
+  type RecentRun,
   type RunClient,
   type RunView,
 } from "@/lib/contracts";
@@ -28,18 +29,44 @@ type PulseCheckAppProps = {
   runClient?: RunClient | null;
   restoreRunId?: string | null;
   onRunIdChange?: (runId: string | null) => void;
+  recentRuns?: RecentRun[];
+  onSelectRun?: (runId: string) => void;
+  onRunCompleted?: () => void;
   startupError?: string | null;
 };
 
-type AppStatus = "empty" | "ready" | "checking" | "completed" | "error";
-type FindingFilter = "all" | Finding["claimType"];
-
-const FINDING_FILTERS: Array<{ id: FindingFilter; label: string }> = [
-  { id: "all", label: "All" },
-  { id: "fact", label: "Facts" },
-  { id: "forecast", label: "Forecasts" },
-  { id: "opinion", label: "Opinions" },
-];
+type AppStatus =
+  "empty" | "ready" | "checking" | "restoring" | "completed" | "error";
+function ViewerLoading() {
+  return (
+    <main className="flex min-h-0 flex-1 flex-col px-5 pt-8 pb-2 sm:px-8">
+      <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
+        <div>
+          <h1 className="text-[22px] font-semibold tracking-tight text-[#f3f3f3]">
+            PulseCheck
+          </h1>
+          <p role="status" className="mt-0.5 text-sm text-[#8e8ea0]">
+            Opening check…
+          </p>
+        </div>
+        <div className="mt-6 grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="rounded-2xl border border-[#242424] bg-[#151515] p-7">
+            <div className="space-y-4" aria-hidden="true">
+              <div className="h-3 w-2/5 rounded-full bg-white/[0.08]" />
+              <div className="h-3 w-full rounded-full bg-white/[0.06]" />
+              <div className="h-3 w-11/12 rounded-full bg-white/[0.06]" />
+              <div className="h-3 w-4/5 rounded-full bg-white/[0.06]" />
+            </div>
+          </div>
+          <div
+            aria-hidden="true"
+            className="rounded-2xl border border-[#303030] bg-[#212121]"
+          />
+        </div>
+      </div>
+    </main>
+  );
+}
 
 function getErrorMessage(error: unknown) {
   if (
@@ -139,12 +166,24 @@ function latestDecisionForFinding(
   return latest?.decision ?? null;
 }
 
+function firstReviewFindingId(findings: Finding[] | null) {
+  if (!findings || findings.length === 0) return null;
+  return (
+    findings.find((finding) => finding.replacement !== null)?.id ??
+    findings[0]?.id ??
+    null
+  );
+}
+
 export function PulseCheckApp({
   demoArticle,
   demoExpected,
   runClient: providedRunClient,
   restoreRunId = null,
   onRunIdChange,
+  recentRuns,
+  onSelectRun,
+  onRunCompleted,
   startupError = null,
 }: PulseCheckAppProps) {
   const [article, setArticle] = useState("");
@@ -157,7 +196,7 @@ export function PulseCheckApp({
   );
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [savingFindingId, setSavingFindingId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<FindingFilter>("all");
+  const [analysisProgress, setAnalysisProgress] = useState(0);
   const fixtureRunClient = useMemo(
     () => createFixtureRunClient(demoArticle, demoExpected),
     [demoArticle, demoExpected],
@@ -168,6 +207,19 @@ export function PulseCheckApp({
   const usesDurableBackend = onRunIdChange !== undefined;
 
   useEffect(() => {
+    if (status !== "checking") return;
+    const interval = window.setInterval(() => {
+      setAnalysisProgress((current) => {
+        if (current >= 92) return 92;
+        const step = current < 45 ? 3.5 : current < 75 ? 2 : 0.8;
+        return Math.min(92, current + step);
+      });
+    }, 500);
+
+    return () => window.clearInterval(interval);
+  }, [status]);
+
+  useEffect(() => {
     if (!runClient || !restoreRunId) return;
     const client = runClient;
     const runId = restoreRunId;
@@ -175,7 +227,7 @@ export function PulseCheckApp({
 
     async function restoreRun() {
       try {
-        setStatus("checking");
+        setStatus("restoring");
         const restored = await pollRunUntilTerminal(
           client,
           runId,
@@ -188,6 +240,7 @@ export function PulseCheckApp({
               ? getRunFailureMessage(restored.run.errorCode)
               : "This is taking longer than expected. Please refresh.",
           );
+          setAnalysisProgress(0);
           setStatus("error");
           return;
         }
@@ -199,10 +252,14 @@ export function PulseCheckApp({
         setArticle(restored.document.originalText);
         setRunView(restored);
         setDecisions(restoredDecisions);
+        setSelectedFindingId(firstReviewFindingId(restored.findings));
+        setAnalysisProgress(100);
         setStatus("completed");
+        onRunCompleted?.();
       } catch (caught) {
         if (cancelled) return;
         setError(getRestoreErrorMessage(caught));
+        setAnalysisProgress(0);
         setStatus("error");
       }
     }
@@ -211,7 +268,7 @@ export function PulseCheckApp({
     return () => {
       cancelled = true;
     };
-  }, [restoreRunId, runClient, usesDurableBackend]);
+  }, [onRunCompleted, restoreRunId, runClient, usesDurableBackend]);
 
   function handleArticleChange(nextArticle: string) {
     setArticle(nextArticle);
@@ -219,7 +276,7 @@ export function PulseCheckApp({
     setError(null);
     setDecisions([]);
     setSelectedFindingId(null);
-    setActiveFilter("all");
+    setAnalysisProgress(0);
     setStatus(nextArticle.length === 0 ? "empty" : "ready");
   }
 
@@ -229,7 +286,7 @@ export function PulseCheckApp({
     setError(null);
     setDecisions([]);
     setSelectedFindingId(null);
-    setActiveFilter("all");
+    setAnalysisProgress(0);
     setStatus("ready");
   }
 
@@ -240,7 +297,7 @@ export function PulseCheckApp({
     setDecisions([]);
     setSelectedFindingId(null);
     setDecisionError(null);
-    setActiveFilter("all");
+    setAnalysisProgress(0);
     setStatus("empty");
     onRunIdChange?.(null);
   }
@@ -256,6 +313,7 @@ export function PulseCheckApp({
       return;
     }
 
+    setAnalysisProgress(6);
     setStatus("checking");
     setError(null);
     setRunView(null);
@@ -275,16 +333,19 @@ export function PulseCheckApp({
             ? getRunFailureMessage(finished.run.errorCode)
             : "This is taking longer than expected. Please try again.",
         );
+        setAnalysisProgress(0);
         setStatus("error");
         return;
       }
       setRunView(finished);
       setDecisions([]);
-      setSelectedFindingId(null);
-      setActiveFilter("all");
+      setSelectedFindingId(firstReviewFindingId(finished.findings));
+      setAnalysisProgress(100);
       setStatus("completed");
+      onRunCompleted?.();
     } catch (caught) {
       setError(getErrorMessage(caught));
+      setAnalysisProgress(0);
       setStatus("error");
     }
   }
@@ -292,17 +353,13 @@ export function PulseCheckApp({
   const findings = runView?.findings ?? [];
   const currentStatus = startupError ? "error" : status;
   const currentError = startupError ?? error;
-  const isCompleted = currentStatus === "completed" && runView !== null;
-  const visibleFindings = findings.filter(
-    (finding) => activeFilter === "all" || finding.claimType === activeFilter,
-  );
-  const visibleFindingIds = new Set(
-    visibleFindings.map((finding) => finding.id),
-  );
+  const showRunView =
+    runView !== null &&
+    (currentStatus === "completed" || currentStatus === "restoring");
   const selectedFinding =
-    visibleFindings.find(({ id }) => id === selectedFindingId) ?? null;
+    findings.find(({ id }) => id === selectedFindingId) ?? null;
   const selectedIndex = selectedFinding
-    ? visibleFindings.findIndex(({ id }) => id === selectedFinding.id)
+    ? findings.findIndex(({ id }) => id === selectedFinding.id)
     : -1;
   const selectedDecision = selectedFinding
     ? latestDecisionForFinding(selectedFinding.id, decisions)
@@ -346,27 +403,11 @@ export function PulseCheckApp({
   }
 
   function selectRelativeFinding(offset: number) {
-    if (visibleFindings.length === 0) return;
+    if (findings.length === 0) return;
     const nextIndex =
-      (selectedIndex + offset + visibleFindings.length) %
-      visibleFindings.length;
-    setSelectedFindingId(visibleFindings[nextIndex]?.id ?? null);
+      (selectedIndex + offset + findings.length) % findings.length;
+    setSelectedFindingId(findings[nextIndex]?.id ?? null);
     setDecisionError(null);
-  }
-
-  function handleFilterChange(filter: FindingFilter) {
-    setActiveFilter(filter);
-    setDecisionError(null);
-    if (
-      selectedFindingId &&
-      !findings.some(
-        (finding) =>
-          finding.id === selectedFindingId &&
-          (filter === "all" || finding.claimType === filter),
-      )
-    ) {
-      setSelectedFindingId(null);
-    }
   }
 
   function closeEvidencePanel() {
@@ -381,8 +422,16 @@ export function PulseCheckApp({
   }
 
   return (
-    <ProductShell>
-      {isCompleted ? (
+    <ProductShell
+      recentRuns={recentRuns}
+      activeRunId={
+        currentStatus === "restoring"
+          ? restoreRunId
+          : (runView?.run.id ?? restoreRunId)
+      }
+      onSelectRun={onSelectRun}
+    >
+      {showRunView && runView ? (
         <main className="flex min-h-0 flex-1 flex-col px-5 pt-8 pb-2 sm:px-8">
           <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -391,9 +440,8 @@ export function PulseCheckApp({
                   PulseCheck
                 </h1>
                 <p role="status" className="mt-0.5 text-sm text-[#8e8ea0]">
-                  {activeFilter === "all"
-                    ? `${findings.length} ${findings.length === 1 ? "finding" : "findings"} ready to review.`
-                    : `${visibleFindings.length} of ${findings.length} ${FINDING_FILTERS.find(({ id }) => id === activeFilter)?.label.toLowerCase()} shown.`}
+                  {findings.length} {findings.length === 1 ? "claim" : "claims"}{" "}
+                  checked
                 </p>
               </div>
               <button
@@ -406,47 +454,7 @@ export function PulseCheckApp({
             </div>
 
             <div
-              role="group"
-              aria-label="Filter findings"
-              className="mt-5 flex flex-wrap items-center gap-1.5"
-            >
-              {FINDING_FILTERS.map(({ id, label }) => {
-                const count =
-                  id === "all"
-                    ? findings.length
-                    : findings.filter(({ claimType }) => claimType === id)
-                        .length;
-                return (
-                  <button
-                    type="button"
-                    key={id}
-                    aria-label={`${label}: ${count} ${count === 1 ? "finding" : "findings"}`}
-                    aria-pressed={activeFilter === id}
-                    onClick={() => handleFilterChange(id)}
-                    className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-white/60 ${
-                      activeFilter === id
-                        ? "bg-[#2f2f2f] font-medium text-[#f3f3f3]"
-                        : "text-[#9b9b9b] hover:bg-white/5"
-                    }`}
-                  >
-                    <span>{label}</span>
-                    <span
-                      aria-hidden="true"
-                      className={`text-xs ${
-                        activeFilter === id
-                          ? "text-[#c6c6c6]"
-                          : "text-[#6f6f78]"
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div
-              className={`mt-5 grid min-h-0 flex-1 gap-5 ${
+              className={`mt-6 grid min-h-0 flex-1 gap-5 ${
                 selectedFinding
                   ? "lg:grid-cols-[minmax(0,1fr)_340px]"
                   : "grid-cols-1"
@@ -456,7 +464,6 @@ export function PulseCheckApp({
                 <ArticleView
                   originalText={runView.document.originalText}
                   findings={findings}
-                  visibleFindingIds={visibleFindingIds}
                   decisions={decisions}
                   selectedFindingId={selectedFindingId}
                   onSelectFinding={(findingId) => {
@@ -472,7 +479,7 @@ export function PulseCheckApp({
                   finding={selectedFinding}
                   decision={selectedDecision}
                   position={selectedIndex + 1}
-                  total={visibleFindings.length}
+                  total={findings.length}
                   isSaving={savingFindingId === selectedFinding.id}
                   error={decisionError}
                   onDecision={(decision) => void handleDecision(decision)}
@@ -484,20 +491,25 @@ export function PulseCheckApp({
             </div>
           </div>
         </main>
+      ) : currentStatus === "restoring" ? (
+        <ViewerLoading />
       ) : (
         <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-5">
           <div className="w-full max-w-[720px] pb-16">
-            <h1 className="text-center text-[28px] font-semibold tracking-tight text-[#f3f3f3] sm:text-[32px]">
-              PulseCheck
+            <h1 className="text-center text-[28px] font-medium tracking-tight text-[#f3f3f3] sm:text-[32px]">
+              Fact-check any article. Keep it current.
             </h1>
+
             <p className="mt-2 text-center text-sm text-[#9b9b9b]">
-              What still holds up today?
+              Check claims against current sources and apply precise, cited
+              updates.
             </p>
 
-            <div className="mt-7">
+            <div className="mt-6">
               <ArticleComposer
                 article={article}
                 isChecking={currentStatus === "checking"}
+                isReady={runClient !== null}
                 onArticleChange={handleArticleChange}
                 onLoadDemo={handleLoadDemo}
                 onCheckArticle={handleCheckArticle}
@@ -505,22 +517,39 @@ export function PulseCheckApp({
               />
             </div>
 
-            <p className="mt-3 text-center text-xs leading-5 text-[#8e8ea0]">
-              Your article is sent to OpenAI for research. Do not paste secrets
-              or information you are not authorized to process.
+            <p className="mt-3 text-center text-xs leading-5 text-[#777780]">
+              Checks are public. Don&apos;t paste sensitive information.
             </p>
 
             {currentStatus === "checking" ? (
-              <div className="mt-8">
-                <div aria-hidden="true" className="h-px bg-white/10">
-                  <div className="h-px w-1/3 bg-[#b4b4b4]" />
+              <div className="mt-8" aria-live="polite">
+                <div
+                  role="progressbar"
+                  aria-label="Analysis progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(analysisProgress)}
+                  className="h-1 overflow-hidden rounded-full bg-white/10"
+                >
+                  <div
+                    className="pulsecheck-progress-fill h-full rounded-full bg-[#d8d8d8] transition-[width] duration-500 ease-out"
+                    style={{ width: `${analysisProgress}%` }}
+                  />
                 </div>
                 <p
                   role="status"
-                  aria-live="polite"
-                  className="mt-4 text-center text-[15px] text-[#b4b4b4]"
+                  className="mt-3 flex items-center justify-between text-sm text-[#9b9b9b]"
                 >
-                  Researching and validating claims…
+                  <span>
+                    {analysisProgress < 35
+                      ? "Finding claims to verify…"
+                      : analysisProgress < 70
+                        ? "Checking current sources…"
+                        : "Preparing cited edits…"}
+                  </span>
+                  <span className="tabular-nums text-[#6f6f78]">
+                    {Math.round(analysisProgress)}%
+                  </span>
                 </p>
               </div>
             ) : null}

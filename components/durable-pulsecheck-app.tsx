@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 
 import { PulseCheckApp } from "@/components/pulsecheck-app";
 import { HttpRunClient } from "@/lib/client/http-run-client";
-import type { RunClient } from "@/lib/contracts";
+import {
+  ListRecentRunsResultSchema,
+  type RecentRun,
+  type RunClient,
+} from "@/lib/contracts";
 import { getAnonymousAccessToken } from "@/lib/supabase/browser";
 
 type DurablePulseCheckAppProps = {
@@ -33,7 +37,22 @@ export function DurablePulseCheckApp({
 }: DurablePulseCheckAppProps) {
   const [runClient, setRunClient] = useState<RunClient | null>(null);
   const [restoreRunId, setRestoreRunId] = useState<string | null>(null);
+  const [recentRuns, setRecentRuns] = useState<RecentRun[]>([]);
   const [startupError, setStartupError] = useState<string | null>(null);
+
+  const refreshRecentRuns = useCallback(async () => {
+    try {
+      const token = await getAnonymousAccessToken();
+      const response = await fetch("/api/runs", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return;
+      const result = ListRecentRunsResultSchema.parse(await response.json());
+      setRecentRuns(result.runs);
+    } catch {
+      // The core check flow remains available if history cannot be loaded.
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +64,7 @@ export function DurablePulseCheckApp({
         if (!cancelled) {
           setRestoreRunId(savedRunId);
           setRunClient(new HttpRunClient(getAnonymousAccessToken));
+          void refreshRecentRuns();
         }
       } catch {
         if (!cancelled) {
@@ -59,10 +79,16 @@ export function DurablePulseCheckApp({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshRecentRuns]);
 
   const handleRunIdChange = useCallback((runId: string | null) => {
     writeRunParam(runId);
+    if (runId === null) setRestoreRunId(null);
+  }, []);
+
+  const handleSelectRun = useCallback((runId: string) => {
+    writeRunParam(runId);
+    setRestoreRunId(runId);
   }, []);
 
   return (
@@ -72,6 +98,9 @@ export function DurablePulseCheckApp({
       runClient={runClient}
       restoreRunId={restoreRunId}
       onRunIdChange={handleRunIdChange}
+      recentRuns={recentRuns}
+      onSelectRun={handleSelectRun}
+      onRunCompleted={refreshRecentRuns}
       startupError={startupError}
     />
   );

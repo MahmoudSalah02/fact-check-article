@@ -83,18 +83,6 @@ textarea {
   }
 }
 
-@keyframes pulsecheck-dot-pop {
-  0% {
-    transform: scale(0.78);
-  }
-  65% {
-    transform: scale(1.16);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
 @keyframes pulsecheck-decision-in {
   from {
     opacity: 0;
@@ -117,12 +105,17 @@ textarea {
   }
 }
 
-.pulsecheck-panel-enter {
-  animation: pulsecheck-panel-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+@keyframes pulsecheck-progress-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
 }
 
-.pulsecheck-dot-selected {
-  animation: pulsecheck-dot-pop 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+.pulsecheck-panel-enter {
+  animation: pulsecheck-panel-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .pulsecheck-decision-enter {
@@ -131,6 +124,17 @@ textarea {
 
 .pulsecheck-tooltip-enter {
   animation: pulsecheck-tooltip-in 140ms ease-out;
+}
+
+.pulsecheck-progress-fill {
+  background-image: linear-gradient(
+    90deg,
+    #a3a3a3 0%,
+    #f3f3f3 48%,
+    #a3a3a3 100%
+  );
+  background-size: 200% 100%;
+  animation: pulsecheck-progress-shimmer 1.4s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

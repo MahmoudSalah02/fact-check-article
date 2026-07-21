@@ -4,53 +4,39 @@ import { useState } from "react";
 
 import type { Finding, Verdict } from "@/lib/contracts";
 
-const VERDICT_META: Record<
-  Verdict,
-  { label: string; dotClass: string; textClass: string }
-> = {
+const VERDICT_META: Record<Verdict, { label: string; glyph: string }> = {
   verified: {
     label: "Verified",
-    dotClass: "bg-emerald-400",
-    textClass: "text-emerald-300",
+    glyph: "✓",
   },
   outdated: {
     label: "Outdated",
-    dotClass: "bg-sky-400",
-    textClass: "text-sky-300",
+    glyph: "↻",
   },
   contradicted: {
     label: "Contradicted",
-    dotClass: "bg-red-400",
-    textClass: "text-red-300",
+    glyph: "×",
   },
   unsupported: {
     label: "Unsupported",
-    dotClass: "bg-amber-300",
-    textClass: "text-amber-200",
+    glyph: "?",
   },
   needs_context: {
     label: "Needs context",
-    dotClass: "bg-amber-300",
-    textClass: "text-amber-200",
+    glyph: "+",
   },
   unresolved: {
     label: "Unresolved",
-    dotClass: "bg-amber-300",
-    textClass: "text-amber-200",
+    glyph: "?",
   },
   opinion: {
     label: "Opinion",
-    dotClass: "bg-zinc-400",
-    textClass: "text-zinc-300",
+    glyph: "≈",
   },
 };
 
 export function getVerdictLabel(verdict: Verdict) {
   return VERDICT_META[verdict].label;
-}
-
-export function getVerdictTextClass(verdict: Verdict) {
-  return VERDICT_META[verdict].textClass;
 }
 
 type FindingDotProps = {
@@ -75,18 +61,13 @@ export function FindingDot({ finding, selected, onSelect }: FindingDotProps) {
       onMouseLeave={() => setShowTooltip(false)}
       onFocus={() => setShowTooltip(true)}
       onBlur={() => setShowTooltip(false)}
-      className={`relative ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full align-middle outline-none transition-all duration-200 active:scale-90 focus-visible:ring-2 focus-visible:ring-white/70 ${
+      className={`relative ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full border px-1 align-middle text-[10px] leading-none font-medium outline-none transition-all duration-200 active:scale-90 focus-visible:ring-2 focus-visible:ring-white/70 ${
         selected
-          ? "pulsecheck-dot-selected bg-white/10 ring-1 ring-white/10"
-          : "hover:scale-110 hover:bg-white/5"
+          ? "border-white bg-white text-[#171717]"
+          : "border-white/10 bg-white/[0.04] text-[#b4b4b4] hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
       }`}
     >
-      <span
-        aria-hidden="true"
-        className={`h-2 w-2 rounded-full transition-all duration-200 hover:scale-125 ${
-          selected ? "scale-125" : ""
-        } ${verdict.dotClass}`}
-      />
+      <span aria-hidden="true">{verdict.glyph}</span>
       {showTooltip ? (
         <span
           role="tooltip"

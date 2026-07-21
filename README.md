@@ -9,7 +9,7 @@ PulseCheck is an evidence-backed fact proofreader. It preserves an article's ori
 M1–M3 and F1–F4 are complete. The app runs in two modes:
 
 - **Fixture mode (default, zero config):** the prepared demo article returns nine deterministic, schema-validated findings with no network, database, or provider account.
-- **Live mode (`.env.local`):** any pasted article is stored in Supabase under an anonymous session and analyzed by a real OpenAI background response with web search; findings are evidence-checked, span-resolved, and persisted. The prepared demo article stays free (fixture) even in live mode.
+- **Live mode (`.env.local`):** any pasted article is stored in Supabase under an invisible anonymous session and analyzed by a real OpenAI background response with web search; findings are evidence-checked, span-resolved, and persisted. Completed checks appear in a shared hackathon gallery, while each browser keeps its own accept/reject decisions. The prepared demo article stays free (fixture) even in live mode.
 
 See [PRD.md](PRD.md) for the product, architecture, and delivery roadmap (one FINAL wrap-up ticket remains).
 

@@ -16,14 +16,43 @@ import {
   completeDurableRun,
   createDurableRun,
   failDurableRun,
+  findReusableCompletedRun,
+  listRecentDurableRuns,
   markRunInProgress,
   PersistenceUnavailableError,
 } from "@/lib/supabase/persistence";
+
+const NO_STORE = { "Cache-Control": "private, no-store" } as const;
 
 async function readDemoArticle() {
   return (
     await readFile(join(process.cwd(), "fixtures/demo-article.txt"), "utf8")
   ).trim();
+}
+
+export async function GET(request: Request) {
+  try {
+    const { client } = await requireUser(request);
+    const result = await listRecentDurableRuns(client);
+    return NextResponse.json(result, { headers: NO_STORE });
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 401, headers: NO_STORE },
+      );
+    }
+    if (error instanceof PersistenceUnavailableError) {
+      return NextResponse.json(
+        { error: "PulseCheck storage is temporarily unavailable" },
+        { status: 503, headers: NO_STORE },
+      );
+    }
+    return NextResponse.json(
+      { error: "Unable to list recent checks" },
+      { status: 500, headers: NO_STORE },
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -38,6 +67,13 @@ export async function POST(request: Request) {
     // The prepared demo runs on the deterministic fixture in every mode, so the
     // canned pitch demo stays free and stable even when OpenAI is enabled.
     if (isDemo) {
+      const adminClient = createAdminSupabaseClient();
+      const reusableRun = await findReusableCompletedRun(
+        adminClient,
+        demoArticle,
+      );
+      if (reusableRun) return NextResponse.json(reusableRun);
+
       const provider = new FixtureAnalysisProvider(demoArticle, demoExpected);
       const created = await createDurableRun(client, input, provider.checkedAt);
       runId = created.result.runId;
@@ -53,7 +89,7 @@ export async function POST(request: Request) {
         output.findings,
       ).map((finding) => ({ ...finding, id: crypto.randomUUID() }));
       await completeDurableRun(
-        createAdminSupabaseClient(),
+        adminClient,
         runId,
         submission.providerRunId,
         findings,

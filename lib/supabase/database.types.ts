@@ -128,7 +128,7 @@ export type Database = {
           {
             foreignKeyName: "edit_decisions_finding_id_fkey";
             columns: ["finding_id"];
-            isOneToOne: true;
+            isOneToOne: false;
             referencedRelation: "findings";
             referencedColumns: ["id"];
           },
