@@ -89,3 +89,7 @@ pnpm test:live
 - Vitest, React Testing Library, Playwright, and pgTAP
 
 The immutable source article, typed findings, evidence, run state, and edit decisions are persisted separately. Model-provided character offsets are never trusted; the server resolves quoted text against the original article before an edit can render.
+
+## How we used Codex and GPT-5.6
+
+We used Codex as an engineering partner from the first product conversation through deployment. Together, we turned the initial idea into a focused PRD, challenged its assumptions, and chose a hackathon-sized scope. Codex then translated the PRD into ordered tickets with clear ownership, dependencies, and acceptance criteria for two developers. We worked through those tickets iteratively: we made the product and engineering decisions, while Codex wrote and reviewed code, ran tests, configured Supabase and Vercel, and helped diagnose failures. We also used production traces and repeatable evaluations to refine the prompts, compare GPT-5.6 models, and improve finding coverage instead of guessing. In the finished app, GPT-5.6 researches claims on the web and returns structured, source-backed findings that PulseCheck safely maps back into the original article.
