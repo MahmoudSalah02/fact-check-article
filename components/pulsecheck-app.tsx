@@ -139,6 +139,15 @@ function latestDecisionForFinding(
   return latest?.decision ?? null;
 }
 
+function firstReviewFindingId(findings: Finding[] | null) {
+  if (!findings || findings.length === 0) return null;
+  return (
+    findings.find((finding) => finding.replacement !== null)?.id ??
+    findings[0]?.id ??
+    null
+  );
+}
+
 export function PulseCheckApp({
   demoArticle,
   demoExpected,
@@ -158,6 +167,7 @@ export function PulseCheckApp({
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [savingFindingId, setSavingFindingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FindingFilter>("all");
+  const [analysisProgress, setAnalysisProgress] = useState(0);
   const fixtureRunClient = useMemo(
     () => createFixtureRunClient(demoArticle, demoExpected),
     [demoArticle, demoExpected],
@@ -168,6 +178,19 @@ export function PulseCheckApp({
   const usesDurableBackend = onRunIdChange !== undefined;
 
   useEffect(() => {
+    if (status !== "checking") return;
+    const interval = window.setInterval(() => {
+      setAnalysisProgress((current) => {
+        if (current >= 92) return 92;
+        const step = current < 45 ? 3.5 : current < 75 ? 2 : 0.8;
+        return Math.min(92, current + step);
+      });
+    }, 500);
+
+    return () => window.clearInterval(interval);
+  }, [status]);
+
+  useEffect(() => {
     if (!runClient || !restoreRunId) return;
     const client = runClient;
     const runId = restoreRunId;
@@ -175,6 +198,7 @@ export function PulseCheckApp({
 
     async function restoreRun() {
       try {
+        setAnalysisProgress(6);
         setStatus("checking");
         const restored = await pollRunUntilTerminal(
           client,
@@ -188,6 +212,7 @@ export function PulseCheckApp({
               ? getRunFailureMessage(restored.run.errorCode)
               : "This is taking longer than expected. Please refresh.",
           );
+          setAnalysisProgress(0);
           setStatus("error");
           return;
         }
@@ -199,10 +224,13 @@ export function PulseCheckApp({
         setArticle(restored.document.originalText);
         setRunView(restored);
         setDecisions(restoredDecisions);
+        setSelectedFindingId(firstReviewFindingId(restored.findings));
+        setAnalysisProgress(100);
         setStatus("completed");
       } catch (caught) {
         if (cancelled) return;
         setError(getRestoreErrorMessage(caught));
+        setAnalysisProgress(0);
         setStatus("error");
       }
     }
@@ -220,6 +248,7 @@ export function PulseCheckApp({
     setDecisions([]);
     setSelectedFindingId(null);
     setActiveFilter("all");
+    setAnalysisProgress(0);
     setStatus(nextArticle.length === 0 ? "empty" : "ready");
   }
 
@@ -230,6 +259,7 @@ export function PulseCheckApp({
     setDecisions([]);
     setSelectedFindingId(null);
     setActiveFilter("all");
+    setAnalysisProgress(0);
     setStatus("ready");
   }
 
@@ -241,6 +271,7 @@ export function PulseCheckApp({
     setSelectedFindingId(null);
     setDecisionError(null);
     setActiveFilter("all");
+    setAnalysisProgress(0);
     setStatus("empty");
     onRunIdChange?.(null);
   }
@@ -256,6 +287,7 @@ export function PulseCheckApp({
       return;
     }
 
+    setAnalysisProgress(6);
     setStatus("checking");
     setError(null);
     setRunView(null);
@@ -275,16 +307,19 @@ export function PulseCheckApp({
             ? getRunFailureMessage(finished.run.errorCode)
             : "This is taking longer than expected. Please try again.",
         );
+        setAnalysisProgress(0);
         setStatus("error");
         return;
       }
       setRunView(finished);
       setDecisions([]);
-      setSelectedFindingId(null);
+      setSelectedFindingId(firstReviewFindingId(finished.findings));
       setActiveFilter("all");
+      setAnalysisProgress(100);
       setStatus("completed");
     } catch (caught) {
       setError(getErrorMessage(caught));
+      setAnalysisProgress(0);
       setStatus("error");
     }
   }
@@ -487,17 +522,15 @@ export function PulseCheckApp({
       ) : (
         <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-5">
           <div className="w-full max-w-[720px] pb-16">
-            <h1 className="text-center text-[28px] font-semibold tracking-tight text-[#f3f3f3] sm:text-[32px]">
-              PulseCheck
+            <h1 className="text-center text-[28px] font-medium tracking-tight text-[#f3f3f3] sm:text-[32px]">
+              What should we verify?
             </h1>
-            <p className="mt-2 text-center text-sm text-[#9b9b9b]">
-              What still holds up today?
-            </p>
 
-            <div className="mt-7">
+            <div className="mt-8">
               <ArticleComposer
                 article={article}
                 isChecking={currentStatus === "checking"}
+                isReady={runClient !== null}
                 onArticleChange={handleArticleChange}
                 onLoadDemo={handleLoadDemo}
                 onCheckArticle={handleCheckArticle}
@@ -505,22 +538,40 @@ export function PulseCheckApp({
               />
             </div>
 
-            <p className="mt-3 text-center text-xs leading-5 text-[#8e8ea0]">
-              Your article is sent to OpenAI for research. Do not paste secrets
-              or information you are not authorized to process.
+            <p className="mt-3 text-center text-xs leading-5 text-[#777780]">
+              Current sources, cited edits. Don&apos;t paste sensitive
+              information.
             </p>
 
             {currentStatus === "checking" ? (
-              <div className="mt-8">
-                <div aria-hidden="true" className="h-px bg-white/10">
-                  <div className="h-px w-1/3 bg-[#b4b4b4]" />
+              <div className="mt-8" aria-live="polite">
+                <div
+                  role="progressbar"
+                  aria-label="Analysis progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(analysisProgress)}
+                  className="h-1 overflow-hidden rounded-full bg-white/10"
+                >
+                  <div
+                    className="pulsecheck-progress-fill h-full rounded-full bg-[#d8d8d8] transition-[width] duration-500 ease-out"
+                    style={{ width: `${analysisProgress}%` }}
+                  />
                 </div>
                 <p
                   role="status"
-                  aria-live="polite"
-                  className="mt-4 text-center text-[15px] text-[#b4b4b4]"
+                  className="mt-3 flex items-center justify-between text-sm text-[#9b9b9b]"
                 >
-                  Researching and validating claims…
+                  <span>
+                    {analysisProgress < 35
+                      ? "Finding claims to verify…"
+                      : analysisProgress < 70
+                        ? "Checking current sources…"
+                        : "Preparing cited edits…"}
+                  </span>
+                  <span className="tabular-nums text-[#6f6f78]">
+                    {Math.round(analysisProgress)}%
+                  </span>
                 </p>
               </div>
             ) : null}

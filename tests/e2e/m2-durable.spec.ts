@@ -10,8 +10,8 @@ test("a run survives refresh and remains isolated from another browser", async (
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Load demo article" }).click();
-  await page.getByRole("button", { name: "Check article" }).click();
+  await page.getByRole("button", { name: "Use demo" }).click();
+  await page.getByRole("button", { name: "Start check" }).click();
   await expect(page.getByText("9 findings ready to review.")).toBeVisible();
   await expect(page).toHaveURL(/\?run=[0-9a-f-]{36}$/);
 

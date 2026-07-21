@@ -5,16 +5,17 @@ test("prepared article travels through the F1 product flow", async ({
 }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
-  await expect(page.getByText("What still holds up today?")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "What should we verify?" }),
+  ).toBeVisible();
   await expect(page.getByText("Codex")).toBeVisible();
   const sidebar = page.getByRole("complementary", {
     name: "Product sidebar",
   });
   await expect(sidebar).toHaveCSS("border-right-width", "0px");
   await expect(sidebar).toHaveCSS("box-shadow", /rgb\(27, 27, 27\)/);
-  await page.getByRole("button", { name: "Load demo article" }).click();
-  await page.getByRole("button", { name: "Check article" }).click();
+  await page.getByRole("button", { name: "Use demo" }).click();
+  await page.getByRole("button", { name: "Start check" }).click();
 
   await expect(page.getByText("9 findings ready to review.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
@@ -28,7 +29,6 @@ test("prepared article travels through the F1 product flow", async ({
     }),
   ).toHaveCount(9);
 
-  await roleFinding.click();
   await expect(
     page.getByRole("complementary", { name: "Evidence panel" }),
   ).toBeVisible();

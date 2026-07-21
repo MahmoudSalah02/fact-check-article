@@ -45,6 +45,12 @@ const ICON_PATHS = {
     "M3.75 12a8.25 8.25 0 1 0 2.416-5.834L3.75 8.582M3.75 3.75v4.832h4.832M12 7.5V12l3 1.5",
 } as const;
 
+const RECENT_CHECKS = [
+  "U.S. data center energy forecast",
+  "Who leads the Department of Energy?",
+  "AI infrastructure and the grid",
+] as const;
+
 const SECONDARY_NAV = [
   { label: "Codex", icon: ICON_PATHS.codex },
   { label: "Library", icon: ICON_PATHS.library },
@@ -110,16 +116,20 @@ export function ProductShell({ children }: ProductShellProps) {
           <p className="px-2.5 pt-6 pb-2 text-xs font-medium text-[#8e8ea0]">
             Recents
           </p>
-          <div className="mx-1 rounded-xl bg-white/[0.025] px-3 py-3.5">
-            <span className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04] text-[#9b9b9b]">
-              <Icon path={ICON_PATHS.history} />
-            </span>
-            <p className="text-sm font-medium text-[#d7d7d7]">
-              No recent checks yet
-            </p>
-            <p className="mt-1 text-xs leading-5 text-[#777780]">
-              Completed analyses will appear here.
-            </p>
+          <div className="space-y-0.5">
+            {RECENT_CHECKS.map((check, index) => (
+              <span
+                key={check}
+                className={`flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-200 hover:bg-white/[0.06] ${
+                  index === 0 ? "text-[#e7e7e7]" : "text-[#b4b4b4]"
+                }`}
+              >
+                <span className="text-[#777780]">
+                  <Icon path={ICON_PATHS.history} />
+                </span>
+                <span className="truncate">{check}</span>
+              </span>
+            ))}
           </div>
         </nav>
 
@@ -130,21 +140,15 @@ export function ProductShell({ children }: ProductShellProps) {
         >
           <span
             aria-hidden="true"
-            className="pulsecheck-workspace-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-[0_0_24px_rgba(255,255,255,0.08)]"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#8b5cf6] text-[11px] font-semibold text-white"
           >
-            <Icon path={ICON_PATHS.pulseCheck} strokeWidth={1.8} />
+            MS
           </span>
           <span className="min-w-0">
             <span className="block truncate text-sm text-[#ececec]">
-              PulseCheck
+              Mahmoud Salah
             </span>
-            <span className="flex items-center gap-1.5 text-xs text-[#8e8ea0]">
-              <span
-                aria-hidden="true"
-                className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]"
-              />
-              Evidence workspace
-            </span>
+            <span className="block text-xs text-[#8e8ea0]">Plus</span>
           </span>
         </div>
       </aside>

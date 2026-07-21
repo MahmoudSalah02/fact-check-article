@@ -23,8 +23,8 @@ async function renderCompletedApp() {
   const view = render(
     <PulseCheckApp demoArticle={demoArticle} demoExpected={demoExpected} />,
   );
-  await user.click(screen.getByRole("button", { name: "Load demo article" }));
-  await user.click(screen.getByRole("button", { name: "Check article" }));
+  await user.click(screen.getByRole("button", { name: "Use demo" }));
+  await user.click(screen.getByRole("button", { name: "Start check" }));
   await screen.findByText("9 findings ready to review.");
   return { user, ...view };
 }
@@ -107,9 +107,12 @@ describe("F3 inline findings experience", () => {
     expect(outdated).toHaveAttribute("aria-pressed", "true");
     expect(
       screen.getByRole("button", { name: "Close evidence panel" }),
-    ).toHaveFocus();
+    ).toBeVisible();
+    expect(outdated).toHaveFocus();
 
-    await user.keyboard("{Enter}");
+    await user.click(
+      screen.getByRole("button", { name: "Close evidence panel" }),
+    );
     await waitFor(() => expect(outdated).toHaveFocus());
   });
 

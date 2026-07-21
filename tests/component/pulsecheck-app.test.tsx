@@ -1,7 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -52,34 +58,33 @@ describe("F1 PulseCheck experience", () => {
     );
     expect(screen.getByText("New chat")).toBeVisible();
     expect(screen.getByText("Recents")).toBeVisible();
-    expect(screen.getByText("No recent checks yet")).toBeVisible();
-    expect(screen.queryByText("Draft launch announcement")).toBeNull();
+    expect(screen.getByText("U.S. data center energy forecast")).toBeVisible();
+    expect(
+      screen.getByText("Who leads the Department of Energy?"),
+    ).toBeVisible();
     expect(
       within(
         screen.getByRole("group", { name: "PulseCheck workspace" }),
-      ).getByText("PulseCheck"),
+      ).getByText("Mahmoud Salah"),
     ).toBeVisible();
-    expect(screen.getByText("Evidence workspace")).toBeVisible();
-    expect(screen.queryByText("Evidence workspace ready")).toBeNull();
+    expect(screen.getByText("Plus")).toBeVisible();
     expect(screen.getByText("ChatGPT")).toBeVisible();
     expect(screen.getByText("Codex")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
-    expect(screen.getByText("What still holds up today?")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "What should we verify?" }),
+    ).toBeVisible();
     expect(
       screen.getByText("Concept prototype; not an official OpenAI product."),
     ).toBeVisible();
     expect(
       screen.getByRole("textbox", { name: "Article text" }),
-    ).toHaveAttribute("placeholder", "Paste an article to check…");
+    ).toHaveAttribute("placeholder", "Paste an article or upload a file");
+    expect(screen.getByRole("button", { name: "Start check" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Use demo" })).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Check article" }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Load demo article" }),
+      screen.getByRole("button", { name: "Upload article" }),
     ).toBeVisible();
-    expect(
-      screen.getByText(/do not paste secrets or information/i),
-    ).toBeVisible();
+    expect(screen.getByText(/current sources, cited edits/i)).toBeVisible();
   });
 
   it("enters the ready state with a character count as the user types", async () => {
@@ -90,15 +95,13 @@ describe("F1 PulseCheck experience", () => {
     await user.type(article, "A checkable statement.");
 
     expect(article).toHaveValue("A checkable statement.");
-    expect(screen.getByRole("button", { name: "Check article" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Start check" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Clear article" })).toBeEnabled();
     expect(screen.getByText("22 / 20,000")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Clear article" }));
     expect(article).toHaveValue("");
-    expect(
-      screen.getByRole("button", { name: "Check article" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Start check" })).toBeDisabled();
   });
 
   it("supports the empty-state journey from the keyboard", async () => {
@@ -113,8 +116,11 @@ describe("F1 PulseCheck experience", () => {
 
     await user.tab();
     expect(
-      screen.getByRole("button", { name: "Load demo article" }),
+      screen.getByRole("button", { name: "Upload article" }),
     ).toHaveFocus();
+
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Use demo" })).toHaveFocus();
 
     await user.keyboard("{Enter}");
     expect(screen.getByRole("textbox", { name: "Article text" })).toHaveValue(
@@ -141,9 +147,7 @@ describe("F1 PulseCheck experience", () => {
     expect(
       screen.getByText(/Shorten the article to 20,000 characters or fewer/),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Check article" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Start check" })).toBeDisabled();
     expect(createRun).not.toHaveBeenCalled();
   });
 
@@ -158,11 +162,30 @@ describe("F1 PulseCheck experience", () => {
     };
     renderPulseCheck(runClient);
 
-    await user.click(screen.getByRole("button", { name: "Load demo article" }));
-    await user.click(screen.getByRole("button", { name: "Check article" }));
+    await user.click(screen.getByRole("button", { name: "Use demo" }));
+    await user.click(screen.getByRole("button", { name: "Start check" }));
 
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Researching and validating claims…",
+      "Finding claims to verify…",
+    );
+    expect(
+      screen.getByRole("progressbar", { name: "Analysis progress" }),
+    ).toBeVisible();
+    const initialProgress = Number(
+      screen
+        .getByRole("progressbar", { name: "Analysis progress" })
+        .getAttribute("aria-valuenow"),
+    );
+    await waitFor(
+      () =>
+        expect(
+          Number(
+            screen
+              .getByRole("progressbar", { name: "Analysis progress" })
+              .getAttribute("aria-valuenow"),
+          ),
+        ).toBeGreaterThan(initialProgress),
+      { timeout: 1_500 },
     );
     expect(screen.getByRole("textbox", { name: "Article text" })).toHaveValue(
       demoArticle,
@@ -170,9 +193,7 @@ describe("F1 PulseCheck experience", () => {
     expect(
       screen.getByRole("textbox", { name: "Article text" }),
     ).toHaveAttribute("readonly");
-    expect(
-      screen.getByRole("button", { name: "Check article" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Start check" })).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Clear article" }),
     ).toBeDisabled();
@@ -187,14 +208,17 @@ describe("F1 PulseCheck experience", () => {
     const user = userEvent.setup();
     renderPulseCheck();
 
-    await user.click(screen.getByRole("button", { name: "Load demo article" }));
-    await user.click(screen.getByRole("button", { name: "Check article" }));
+    await user.click(screen.getByRole("button", { name: "Use demo" }));
+    await user.click(screen.getByRole("button", { name: "Start check" }));
 
     expect(
       await screen.findByText("9 findings ready to review."),
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
     expect(screen.getByRole("button", { name: "New check" })).toBeVisible();
+    expect(
+      screen.getByRole("complementary", { name: "Evidence panel" }),
+    ).toBeVisible();
 
     expect(
       screen.getByRole("region", { name: "Checked article" }),
@@ -212,7 +236,7 @@ describe("F1 PulseCheck experience", () => {
 
     const article = screen.getByRole("textbox", { name: "Article text" });
     await user.type(article, "This is not the prepared article.");
-    await user.click(screen.getByRole("button", { name: "Check article" }));
+    await user.click(screen.getByRole("button", { name: "Start check" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "This prototype can only check the prepared demo article",
@@ -221,7 +245,9 @@ describe("F1 PulseCheck experience", () => {
 
     await user.click(screen.getByRole("button", { name: "Clear article" }));
 
-    expect(screen.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "What should we verify?" }),
+    ).toBeVisible();
     expect(screen.getByRole("textbox", { name: "Article text" })).toHaveValue(
       "",
     );
