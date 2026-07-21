@@ -128,7 +128,7 @@ export function resolveModelFindings(
   for (const raw of rawFindings) {
     const parsed = AnalysisFindingSchema.safeParse(raw);
     if (!parsed.success) {
-      console.warn("[M3] drop finding: invalid schema");
+      console.warn("[analysis] drop finding: invalid schema");
       continue;
     }
     const finding = parsed.data;
@@ -139,7 +139,7 @@ export function resolveModelFindings(
     // Anti-hallucination: every cited source must be on a searched domain.
     if (!findingEvidenceOk(finding, searchedHosts)) {
       console.warn(
-        `[M3] drop finding ${finding.id}: sources not on a searched domain`,
+        `[analysis] drop finding ${finding.id}: sources not on a searched domain`,
       );
       continue;
     }
@@ -147,7 +147,7 @@ export function resolveModelFindings(
     const span = resolveFindingSpanLenient(articleText, finding);
     if (!span) {
       console.warn(
-        `[M3] drop finding ${finding.id}: quote could not be located`,
+        `[analysis] drop finding ${finding.id}: quote could not be located`,
       );
       continue;
     }
@@ -160,7 +160,7 @@ export function resolveModelFindings(
       checkedAt,
     });
     if (!record.success) {
-      console.warn(`[M3] drop finding ${finding.id}: invalid record`);
+      console.warn(`[analysis] drop finding ${finding.id}: invalid record`);
       continue;
     }
 
@@ -210,7 +210,7 @@ export async function completeOpenAiRun(
 
   const rawFindings = rawFindingsOf(normalizeReplacements(result.rawOutput));
   if (rawFindings === null) {
-    console.error("[M3] analysis output was not usable", { runId });
+    console.error("[analysis] analysis output was not usable", { runId });
     await failDurableRun(admin, runId, "invalid_analysis_output");
     return;
   }
@@ -223,7 +223,9 @@ export async function completeOpenAiRun(
   );
 
   if (rawFindings.length > 0 && findings.length === 0) {
-    console.error("[M3] no findings survived validation/resolution", { runId });
+    console.error("[analysis] no findings survived validation/resolution", {
+      runId,
+    });
     await failDurableRun(admin, runId, "no_usable_findings");
     return;
   }
@@ -238,7 +240,7 @@ export async function completeOpenAiRun(
     );
   } catch (error) {
     if (error instanceof PersistenceUnavailableError) throw error;
-    console.error("[M3] run completion failed", { runId, error });
+    console.error("[analysis] run completion failed", { runId, error });
     await failDurableRun(admin, runId, "completion_failed");
   }
 }
