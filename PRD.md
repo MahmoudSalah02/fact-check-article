@@ -81,7 +81,7 @@ For live checks, the server:
 1. Stores the original article and server-generated check date.
 2. Sends the article as untrusted data to the OpenAI Responses API.
 3. Uses web search and asks for structured findings.
-4. Prefers current primary or authoritative sources.
+4. Audits every sentence for distinct facts, forecasts, and opinions, then prefers current primary or authoritative sources for each checkable claim.
 5. Cross-checks every cited URL against the response's search and citation metadata.
 6. Enforces verdict, confidence, forecast, citation, and replacement rules with Zod.
 7. Locates each quoted passage in the immutable article using deterministic UTF-16 offsets.

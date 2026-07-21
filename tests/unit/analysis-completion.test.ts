@@ -415,6 +415,65 @@ describe("M3 completion on the real failing trace", () => {
       replacement: expect.any(String),
     });
   });
+
+  it("normalizes honest month-only source dates instead of dropping findings", () => {
+    const normalized = normalizeReplacements({
+      findings: [
+        {
+          ...RAW.findings[0],
+          sources: [
+            { ...RAW.findings[0]!.sources[0], publishedAt: "2026-06" },
+            { ...RAW.findings[0]!.sources[0], publishedAt: "2026" },
+            { ...RAW.findings[0]!.sources[0], publishedAt: "2026-06-15" },
+          ],
+        },
+      ],
+    }) as {
+      findings: Array<{ sources: Array<{ publishedAt: string | null }> }>;
+    };
+
+    expect(normalized.findings[0]!.sources).toEqual([
+      expect.objectContaining({ publishedAt: null }),
+      expect.objectContaining({ publishedAt: null }),
+      expect.objectContaining({ publishedAt: "2026-06-15" }),
+    ]);
+  });
+
+  it("normalizes provider hints that are safe for lenient span resolution", () => {
+    const normalized = normalizeReplacements({
+      findings: [
+        {
+          ...RAW.findings[0],
+          claimType: "fact",
+          forecastStatus: "revised",
+          prefixText: "p".repeat(250),
+          suffixText: "s".repeat(250),
+        },
+        {
+          ...RAW.findings[0],
+          claimType: "fact",
+          verdict: "opinion",
+          forecastStatus: "pending",
+          sources: [],
+          replacement: null,
+        },
+      ],
+    }) as {
+      findings: Array<{
+        claimType: string;
+        prefixText: string;
+        suffixText: string;
+      }>;
+    };
+
+    expect(normalized.findings[0]).toMatchObject({ claimType: "forecast" });
+    expect(normalized.findings[0]!.prefixText).toHaveLength(200);
+    expect(normalized.findings[0]!.suffixText).toHaveLength(200);
+    expect(normalized.findings[1]).toMatchObject({
+      claimType: "opinion",
+      forecastStatus: null,
+    });
+  });
 });
 
 describe("resolveModelFindings resilience", () => {

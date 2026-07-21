@@ -86,7 +86,42 @@ export function normalizeReplacements(rawOutput: unknown): unknown {
     ...record,
     findings: record.findings.map((raw) => {
       if (typeof raw !== "object" || raw === null) return raw;
-      const finding = raw as Record<string, unknown>;
+      const originalFinding = raw as Record<string, unknown>;
+      const finding: Record<string, unknown> = {
+        ...originalFinding,
+        claimType:
+          originalFinding.verdict === "opinion"
+            ? "opinion"
+            : originalFinding.claimType === "fact" &&
+                typeof originalFinding.forecastStatus === "string"
+              ? "forecast"
+              : originalFinding.claimType,
+        forecastStatus:
+          originalFinding.verdict === "opinion"
+            ? null
+            : originalFinding.forecastStatus,
+        prefixText:
+          typeof originalFinding.prefixText === "string" &&
+          originalFinding.prefixText.length > 200
+            ? originalFinding.prefixText.slice(-200)
+            : originalFinding.prefixText,
+        suffixText:
+          typeof originalFinding.suffixText === "string" &&
+          originalFinding.suffixText.length > 200
+            ? originalFinding.suffixText.slice(0, 200)
+            : originalFinding.suffixText,
+        sources: Array.isArray(originalFinding.sources)
+          ? originalFinding.sources.map((source) => {
+              if (typeof source !== "object" || source === null) return source;
+              const sourceRecord = source as Record<string, unknown>;
+              const publishedAt = sourceRecord.publishedAt;
+              return typeof publishedAt === "string" &&
+                /^\d{4}(?:-\d{2})?$/.test(publishedAt)
+                ? { ...sourceRecord, publishedAt: null }
+                : sourceRecord;
+            })
+          : originalFinding.sources,
+      };
       const hasSafeInlineContextEdit =
         finding.confidence === "high" &&
         typeof finding.replacement === "string" &&

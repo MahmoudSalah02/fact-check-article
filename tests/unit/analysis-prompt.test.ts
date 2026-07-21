@@ -11,7 +11,9 @@ describe("F4 analysis prompt", () => {
 
     for (const requiredInstruction of [
       "untrusted data",
-      "atomic checkable",
+      "findings atomic and non-overlapping",
+      "complete sentence-by-sentence claim inventory",
+      "research order rather than a coverage limit",
       "sourceText exactly",
       "prefixText",
       "suffixText",
@@ -21,10 +23,15 @@ describe("F4 analysis prompt", () => {
       "consulted url is not proof",
       "what each selected citation supports",
       "smallest defensible replacement",
+      "must include a non-null replacement",
       "concise inline qualification",
       "read naturally between prefixtext and suffixtext",
       "preserve the author's subject, tense, voice",
       "use unsupported or unresolved instead of needs_context",
+      "newer authoritative report supersedes",
+      "do not target an arbitrary total number of sources",
+      "never return yyyy or yyyy-mm",
+      "audit the article sentence by sentence",
       "low-confidence",
       "internal contradictions",
     ]) {
