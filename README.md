@@ -1,69 +1,68 @@
 # PulseCheck
 
-PulseCheck is an evidence-backed fact proofreader. It preserves an article's original wording, identifies claims that no longer hold up, and proposes the smallest supported corrections with clickable sources.
+PulseCheck fact-checks an article without turning it into a report. It marks claims in the original text, shows the evidence, and lets the reader apply or reject precise corrections in place.
 
-> Concept prototype for a hackathon; not an official OpenAI product.
+**Live demo:** [pulsecheck-omega.vercel.app](https://pulsecheck-omega.vercel.app)
 
-## Current status
+> Hackathon concept. Not an official OpenAI product.
 
-M1–M3 and F1–F4 are complete. The app runs in two modes:
+## Why it matters
 
-- **Fixture mode (default, zero config):** the prepared demo article returns nine deterministic, schema-validated findings with no network, database, or provider account.
-- **Live mode (`.env.local`):** any pasted article is stored in Supabase under an invisible anonymous session and analyzed by a real OpenAI background response with web search; findings are evidence-checked, span-resolved, and persisted. Completed checks appear in a shared hackathon gallery, while each browser keeps its own accept/reject decisions. The prepared demo article stays free (fixture) even in live mode.
+Articles age. Job titles change, forecasts get revised, and confident claims lose their support. PulseCheck makes those changes visible while preserving the author's wording and the reader's focus.
 
-See [PRD.md](PRD.md) for the product, architecture, and delivery roadmap (one FINAL wrap-up ticket remains).
+Each finding includes:
 
-## Local setup
+- a verdict and confidence level;
+- a short explanation;
+- the date it was checked;
+- clickable evidence;
+- a correction only when the evidence supports one.
 
-Prerequisites:
+The app distinguishes facts, forecasts, and opinions. It can verify, update, contradict, qualify, or abstain. It does not assign a made-up truth score to an entire article.
 
-- Node.js 24.x (the project includes `.nvmrc` and `.node-version`)
-- Corepack or pnpm 11.15.0
+## Try the demo
 
-On macOS with Homebrew:
+1. Open the [live app](https://pulsecheck-omega.vercel.app).
+2. Select **Use demo**.
+3. Start the check.
+4. Select a marker in the article to inspect its evidence.
+5. Accept a correction to apply it in place. Reject it to restore the original wording.
 
-```bash
-brew install node@24
-brew link --overwrite node@24
-corepack enable
-corepack prepare pnpm@11.15.0 --activate
-```
+The prepared article uses a deterministic nine-finding fixture, so the core demo is fast and repeatable. Any other pasted text uses OpenAI web research in the deployed app. Completed checks appear in the shared **Recents** list.
 
-Clone and run:
+## Run locally
+
+You need Node.js 24 and pnpm 11.15.0.
 
 ```bash
 git clone https://github.com/MahmoudSalah02/fact-check-article.git
 cd fact-check-article
+corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open <http://localhost:3000>, choose **Load demo article**, then choose **Check article**. No `.env.local` is needed for fixture mode.
+Open <http://localhost:3000>. The default fixture mode needs no account, database, or API key.
 
-## Running live analysis (Supabase + OpenAI)
+## Run with Supabase and OpenAI
 
-Live mode needs a `.env.local` in the repository root. **Never commit it** — it is gitignored, and every value in it is a secret. Mahmoud shares the current file through a secure channel (password manager or encrypted message; never chat, email, or git). The variables it contains are listed in [.env.example](.env.example): hosted dev Supabase URL/keys, `DATA_BACKEND=supabase`, `ANALYSIS_PROVIDER=openai`, `OPENAI_API_KEY`, and `OPENAI_MODEL`.
+Copy `.env.example` to `.env.local` and provide:
 
-With the file in place:
-
-```bash
-pnpm install --frozen-lockfile
-pnpm dev
+```dotenv
+DATA_BACKEND=supabase
+ANALYSIS_PROVIDER=openai
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+SUPABASE_SECRET_KEY=...
+OPENAI_API_KEY=...
+OPENAI_MODEL=...
 ```
 
-- **Demo article** → completes instantly and free (fixture short-circuit).
-- **Any other article** → creates a durable run, submits a background OpenAI response with web search, and the page polls until findings render (typically 20–90 seconds). The OpenAI key is prepaid — each real run costs real money, so don't loop them casually.
-- Local Supabase/Docker is **not** required in this mode; the env points at the hosted dev project.
+`OPENAI_WEBHOOK_SECRET` is optional. Without it, the app completes background runs while the browser polls. Keep `.env.local` out of Git. Only the Supabase URL and publishable key belong in the browser bundle.
 
-To verify the whole pipeline end to end (5 real articles through the exact app code, ~$0.50 per round):
+Anonymous Supabase sessions are created automatically. Completed articles and findings are public in the hackathon gallery. Accept and reject decisions remain private to each anonymous session. Do not submit sensitive text.
 
-```bash
-pnpm test:live
-```
-
-It is skipped automatically in CI and in plain `pnpm test`.
-
-## Quality gate
+## Tests
 
 ```bash
 pnpm format:check
@@ -71,35 +70,22 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm test:fixture
-pnpm exec playwright install chromium
 pnpm test:e2e
 pnpm build
 ```
 
-GitHub Actions runs the same checks on pull requests and `main`. Dependencies and third-party Actions are pinned through the committed lockfile and immutable Action SHAs.
+The live OpenAI evaluation is opt-in because it spends API credit:
 
-### Build bundler
+```bash
+pnpm test:live
+```
 
-`pnpm dev` uses Turbopack for fast local iteration, but `pnpm build` runs `next build --webpack`. Turbopack's production build currently mis-orders Zod v4's ISO schema modules and crashes with `Cannot access 'af' before initialization` while collecting API-route page data (already on the latest stable Zod, 4.4.3). The webpack build is unaffected and fully supported. `pnpm build:turbopack` is kept so we can re-test Turbopack after a future Next.js or Zod fix and flip `build` back.
+## Stack
 
-Vercel Previews use standard deployment protection. Automated Preview tests may provide `VERCEL_AUTOMATION_BYPASS_SECRET` through secure environment storage; Playwright sends it only as the documented Vercel bypass header.
+- Next.js 16, React 19, TypeScript, Tailwind CSS
+- OpenAI Responses API with web search and structured output
+- Supabase Postgres, anonymous Auth, SQL migrations, and row-level security
+- Vercel
+- Vitest, React Testing Library, Playwright, and pgTAP
 
-## M1 boundaries
-
-- `lib/contracts/` owns provider-neutral Zod schemas and inferred TypeScript types.
-- `lib/analysis/` owns the provider interface and deterministic fixture provider.
-- `lib/server/` owns repositories, adapters, configuration, and future server integrations.
-- `lib/domain/` remains free of Next.js, Supabase, Vercel, and OpenAI SDK imports.
-- `components/` contains the F1 product shell and article input, plus ticket-owned future UI seams.
-- `app/api/` compiles but deliberately returns HTTP `501` until its owning ticket.
-
-Search `TODO(M2)` through `TODO(F5)` to find each explicitly owned implementation seam. Do not implement across another developer's boundary without agreeing on the shared contract first.
-
-## Demo fixture
-
-- Input: [fixtures/demo-article.txt](fixtures/demo-article.txt)
-- Expected findings: [fixtures/demo-expected.json](fixtures/demo-expected.json)
-
-## Security
-
-Never commit secrets or paste provider credentials into issues, pull requests, logs, or chat. Local credentials belong in ignored environment files or the provider's secure credential store.
+The immutable source article, typed findings, evidence, run state, and edit decisions are persisted separately. Model-provided character offsets are never trusted; the server resolves quoted text against the original article before an edit can render.
