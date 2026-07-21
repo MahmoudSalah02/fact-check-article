@@ -72,7 +72,7 @@ A replacement is allowed only when all of these are true:
 3. At least one supporting citation passed validation.
 4. The quoted passage resolves to one unambiguous span in the original article.
 
-Unsupported claims, unresolved claims, opinions, verified claims, and lower-confidence findings never receive an invented correction.
+Every `needs_context` finding includes a concise replacement that reads naturally in the surrounding paragraph. If the evidence cannot support that inline revision with high confidence, the server keeps it as an `unresolved` flag instead. Unsupported claims, unresolved claims, opinions, verified claims, and lower-confidence findings never receive an invented correction.
 
 ## Research and validation
 
@@ -81,7 +81,7 @@ For live checks, the server:
 1. Stores the original article and server-generated check date.
 2. Sends the article as untrusted data to the OpenAI Responses API.
 3. Uses web search and asks for structured findings.
-4. Prefers current primary or authoritative sources.
+4. Audits every sentence for distinct facts, forecasts, and opinions, then prefers current primary or authoritative sources for each checkable claim.
 5. Cross-checks every cited URL against the response's search and citation metadata.
 6. Enforces verdict, confidence, forecast, citation, and replacement rules with Zod.
 7. Locates each quoted passage in the immutable article using deterministic UTF-16 offsets.

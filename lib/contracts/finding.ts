@@ -82,6 +82,14 @@ function validateFindingPolicy(value: FindingLike, context: z.RefinementCtx) {
     });
   }
 
+  if (value.verdict === "needs_context" && value.replacement === null) {
+    context.addIssue({
+      code: "custom",
+      path: ["replacement"],
+      message: "A needs_context finding requires an inline replacement",
+    });
+  }
+
   if (value.replacement !== null) {
     const editableVerdicts = new Set([
       "outdated",

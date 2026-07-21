@@ -381,11 +381,98 @@ describe("M3 completion on the real failing trace", () => {
         finding.sourceText,
       );
     }
-    // f4 and f6 (medium confidence) lost their replacement; the five
-    // high-confidence editable findings kept theirs.
+    // f4 and f6 (medium confidence) become unresolved flags; the five
+    // high-confidence editable findings keep their inline revisions.
     expect(
       findings.filter((finding) => finding.replacement !== null),
     ).toHaveLength(5);
+    expect(
+      findings
+        .filter((finding) => finding.verdict === "needs_context")
+        .every((finding) => finding.replacement !== null),
+    ).toBe(true);
+  });
+
+  it("degrades non-actionable needs_context findings to unresolved", () => {
+    const normalized = normalizeReplacements(RAW) as {
+      findings: Array<{
+        id: string;
+        verdict: string;
+        replacement: string | null;
+      }>;
+    };
+
+    expect(normalized.findings.find(({ id }) => id === "f4")).toMatchObject({
+      verdict: "unresolved",
+      replacement: null,
+    });
+    expect(normalized.findings.find(({ id }) => id === "f6")).toMatchObject({
+      verdict: "unresolved",
+      replacement: null,
+    });
+    expect(normalized.findings.find(({ id }) => id === "f3")).toMatchObject({
+      verdict: "needs_context",
+      replacement: expect.any(String),
+    });
+  });
+
+  it("normalizes honest month-only source dates instead of dropping findings", () => {
+    const normalized = normalizeReplacements({
+      findings: [
+        {
+          ...RAW.findings[0],
+          sources: [
+            { ...RAW.findings[0]!.sources[0], publishedAt: "2026-06" },
+            { ...RAW.findings[0]!.sources[0], publishedAt: "2026" },
+            { ...RAW.findings[0]!.sources[0], publishedAt: "2026-06-15" },
+          ],
+        },
+      ],
+    }) as {
+      findings: Array<{ sources: Array<{ publishedAt: string | null }> }>;
+    };
+
+    expect(normalized.findings[0]!.sources).toEqual([
+      expect.objectContaining({ publishedAt: null }),
+      expect.objectContaining({ publishedAt: null }),
+      expect.objectContaining({ publishedAt: "2026-06-15" }),
+    ]);
+  });
+
+  it("normalizes provider hints that are safe for lenient span resolution", () => {
+    const normalized = normalizeReplacements({
+      findings: [
+        {
+          ...RAW.findings[0],
+          claimType: "fact",
+          forecastStatus: "revised",
+          prefixText: "p".repeat(250),
+          suffixText: "s".repeat(250),
+        },
+        {
+          ...RAW.findings[0],
+          claimType: "fact",
+          verdict: "opinion",
+          forecastStatus: "pending",
+          sources: [],
+          replacement: null,
+        },
+      ],
+    }) as {
+      findings: Array<{
+        claimType: string;
+        prefixText: string;
+        suffixText: string;
+      }>;
+    };
+
+    expect(normalized.findings[0]).toMatchObject({ claimType: "forecast" });
+    expect(normalized.findings[0]!.prefixText).toHaveLength(200);
+    expect(normalized.findings[0]!.suffixText).toHaveLength(200);
+    expect(normalized.findings[1]).toMatchObject({
+      claimType: "opinion",
+      forecastStatus: null,
+    });
   });
 });
 
