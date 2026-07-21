@@ -5,7 +5,7 @@ test.skip(
   "requires the local or Preview Supabase backend",
 );
 
-test("a run survives refresh and remains isolated from another browser", async ({
+test("a run survives refresh and appears in the shared recent gallery", async ({
   browser,
   page,
 }) => {
@@ -21,13 +21,19 @@ test("a run survives refresh and remains isolated from another browser", async (
 
   const isolatedContext = await browser.newContext();
   const isolatedPage = await isolatedContext.newPage();
-  await isolatedPage.goto(durableUrl);
-  // A second anonymous user must not see the run: RLS denies the read, the
-  // restore fails with 404, and the app surfaces the not-found error.
+  await isolatedPage.goto("/");
+  await isolatedPage
+    .getByRole("button", { name: /U\.S\. electricity demand had remained/ })
+    .first()
+    .click();
   await expect(
-    isolatedPage
-      .getByRole("alert")
-      .filter({ hasText: "We couldn't find that saved analysis." }),
+    isolatedPage.getByText("9 findings ready to review."),
   ).toBeVisible();
+  await expect(isolatedPage).toHaveURL(durableUrl);
+
+  await isolatedPage.getByRole("button", { name: "Reject" }).click();
+  await expect(isolatedPage.getByText("Decision: rejected")).toBeVisible();
+  await isolatedPage.reload();
+  await expect(isolatedPage.getByText("Decision: rejected")).toBeVisible();
   await isolatedContext.close();
 });

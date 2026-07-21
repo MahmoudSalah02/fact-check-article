@@ -13,6 +13,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import demoExpected from "@/fixtures/demo-expected.json";
 import { MAX_ARTICLE_LENGTH } from "@/components/article-composer";
+import { ProductShell } from "@/components/product-shell";
 import { PulseCheckApp } from "@/components/pulsecheck-app";
 import type { CreateRunResult, RunClient } from "@/lib/contracts";
 
@@ -84,7 +85,32 @@ describe("F1 PulseCheck experience", () => {
     expect(
       screen.getByRole("button", { name: "Upload article" }),
     ).toBeVisible();
-    expect(screen.getByText(/current sources, cited edits/i)).toBeVisible();
+    expect(screen.getByText(/checks are public/i)).toBeVisible();
+  });
+
+  it("opens a real recent check from the sidebar", async () => {
+    const user = userEvent.setup();
+    const onSelectRun = vi.fn();
+    const runId = crypto.randomUUID();
+    render(
+      <ProductShell
+        recentRuns={[
+          {
+            id: runId,
+            title: "A shared energy forecast",
+            createdAt: new Date().toISOString(),
+          },
+        ]}
+        onSelectRun={onSelectRun}
+      >
+        <div />
+      </ProductShell>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "A shared energy forecast" }),
+    );
+    expect(onSelectRun).toHaveBeenCalledWith(runId);
   });
 
   it("enters the ready state with a character count as the user types", async () => {

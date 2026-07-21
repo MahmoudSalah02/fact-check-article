@@ -6,6 +6,7 @@ import {
   AnalysisRunSchema,
   AnalysisOutputSchema,
   FindingSchema,
+  ListRecentRunsResultSchema,
   SourceSchema,
 } from "@/lib/contracts";
 import { parseDemoFixture } from "@/lib/analysis/fixture-provider";
@@ -132,5 +133,28 @@ describe("finding contracts", () => {
         errorCode: "unexpected",
       }),
     ).toThrow(/Only failed/);
+  });
+
+  it("validates the bounded recent-run gallery payload", () => {
+    expect(
+      ListRecentRunsResultSchema.parse({
+        runs: [
+          {
+            id: crypto.randomUUID(),
+            title: "A shared check",
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      }).runs,
+    ).toHaveLength(1);
+    expect(() =>
+      ListRecentRunsResultSchema.parse({
+        runs: Array.from({ length: 11 }, () => ({
+          id: crypto.randomUUID(),
+          title: "Too many",
+          createdAt: new Date().toISOString(),
+        })),
+      }),
+    ).toThrow();
   });
 });

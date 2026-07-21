@@ -8,9 +8,11 @@ import {
   DocumentSchema,
   FindingSchema,
   GetRunResultSchema,
+  ListRecentRunsResultSchema,
   type CreateRunInput,
   type Finding,
   type GetRunResult,
+  type ListRecentRunsResult,
 } from "@/lib/contracts";
 import type { Database, Json, Tables } from "@/lib/supabase/database.types";
 import { toIsoUtc } from "@/lib/supabase/timestamps";
@@ -20,6 +22,56 @@ export { toIsoUtc };
 type UserClient = SupabaseClient<Database>;
 
 export class PersistenceUnavailableError extends Error {}
+
+function recentRunTitle(title: string | null, originalText: string) {
+  if (title) return title;
+  const compactText = originalText.replace(/\s+/g, " ").trim();
+  if (compactText.length <= 64) return compactText;
+  return `${compactText.slice(0, 61).trimEnd()}…`;
+}
+
+export async function listRecentDurableRuns(
+  client: UserClient,
+  limit = 8,
+): Promise<ListRecentRunsResult> {
+  const { data: runRows, error: runsError } = await client
+    .from("analysis_runs")
+    .select("id, document_id, created_at")
+    .eq("status", "completed")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (runsError) {
+    throw new PersistenceUnavailableError("Unable to list recent runs");
+  }
+  if (runRows.length === 0) return { runs: [] };
+
+  const { data: documentRows, error: documentsError } = await client
+    .from("documents")
+    .select("id, title, original_text")
+    .in(
+      "id",
+      runRows.map(({ document_id }) => document_id),
+    );
+  if (documentsError) {
+    throw new PersistenceUnavailableError("Unable to list recent runs");
+  }
+
+  const documentsById = new Map(documentRows.map((row) => [row.id, row]));
+  return ListRecentRunsResultSchema.parse({
+    runs: runRows.flatMap((run) => {
+      const document = documentsById.get(run.document_id);
+      return document
+        ? [
+            {
+              id: run.id,
+              title: recentRunTitle(document.title, document.original_text),
+              createdAt: toIsoUtc(run.created_at),
+            },
+          ]
+        : [];
+    }),
+  });
+}
 
 export async function createDurableRun(
   client: UserClient,

@@ -1,8 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import type { RecentRun } from "@/lib/contracts";
+
 type ProductShellProps = {
   children: ReactNode;
+  recentRuns?: RecentRun[];
+  activeRunId?: string | null;
+  onSelectRun?: (runId: string) => void;
 };
 
 type IconProps = {
@@ -45,7 +50,7 @@ const ICON_PATHS = {
     "M3.75 12a8.25 8.25 0 1 0 2.416-5.834L3.75 8.582M3.75 3.75v4.832h4.832M12 7.5V12l3 1.5",
 } as const;
 
-const RECENT_CHECKS = [
+const DEMO_RECENT_CHECKS = [
   "U.S. data center energy forecast",
   "Who leads the Department of Energy?",
   "AI infrastructure and the grid",
@@ -59,7 +64,17 @@ const SECONDARY_NAV = [
   { label: "Plugins", icon: ICON_PATHS.plugins },
 ] as const;
 
-export function ProductShell({ children }: ProductShellProps) {
+export function ProductShell({
+  children,
+  recentRuns,
+  activeRunId = null,
+  onSelectRun,
+}: ProductShellProps) {
+  const visibleRecentRuns =
+    recentRuns && recentRuns.length > 0
+      ? recentRuns
+      : DEMO_RECENT_CHECKS.map((title) => ({ id: null, title }));
+
   return (
     <div className="flex h-dvh overflow-hidden bg-[#0d0d0d] text-[#ececec]">
       <aside
@@ -117,19 +132,36 @@ export function ProductShell({ children }: ProductShellProps) {
             Recents
           </p>
           <div className="space-y-0.5">
-            {RECENT_CHECKS.map((check, index) => (
-              <span
-                key={check}
-                className={`flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors duration-200 hover:bg-white/[0.06] ${
-                  index === 0 ? "text-[#e7e7e7]" : "text-[#b4b4b4]"
-                }`}
-              >
-                <span className="text-[#777780]">
-                  <Icon path={ICON_PATHS.history} />
+            {visibleRecentRuns.map((run, index) => {
+              const isActive = run.id !== null && run.id === activeRunId;
+              const content = (
+                <>
+                  <span className="text-[#777780]">
+                    <Icon path={ICON_PATHS.history} />
+                  </span>
+                  <span className="truncate">{run.title}</span>
+                </>
+              );
+              const className = `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm outline-none transition-colors duration-200 hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-white/40 ${
+                isActive || index === 0 ? "text-[#e7e7e7]" : "text-[#b4b4b4]"
+              } ${isActive ? "bg-white/[0.06]" : ""}`;
+
+              return run.id && onSelectRun ? (
+                <button
+                  type="button"
+                  key={run.id}
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={() => onSelectRun(run.id)}
+                  className={className}
+                >
+                  {content}
+                </button>
+              ) : (
+                <span key={`${run.title}-${index}`} className={className}>
+                  {content}
                 </span>
-                <span className="truncate">{check}</span>
-              </span>
-            ))}
+              );
+            })}
           </div>
         </nav>
 

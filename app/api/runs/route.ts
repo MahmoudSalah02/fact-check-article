@@ -16,14 +16,42 @@ import {
   completeDurableRun,
   createDurableRun,
   failDurableRun,
+  listRecentDurableRuns,
   markRunInProgress,
   PersistenceUnavailableError,
 } from "@/lib/supabase/persistence";
+
+const NO_STORE = { "Cache-Control": "private, no-store" } as const;
 
 async function readDemoArticle() {
   return (
     await readFile(join(process.cwd(), "fixtures/demo-article.txt"), "utf8")
   ).trim();
+}
+
+export async function GET(request: Request) {
+  try {
+    const { client } = await requireUser(request);
+    const result = await listRecentDurableRuns(client);
+    return NextResponse.json(result, { headers: NO_STORE });
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 401, headers: NO_STORE },
+      );
+    }
+    if (error instanceof PersistenceUnavailableError) {
+      return NextResponse.json(
+        { error: "PulseCheck storage is temporarily unavailable" },
+        { status: 503, headers: NO_STORE },
+      );
+    }
+    return NextResponse.json(
+      { error: "Unable to list recent checks" },
+      { status: 500, headers: NO_STORE },
+    );
+  }
 }
 
 export async function POST(request: Request) {

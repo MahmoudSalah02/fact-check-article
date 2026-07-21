@@ -14,6 +14,7 @@ import {
   SetDecisionResultSchema,
   type EditDecision,
   type Finding,
+  type RecentRun,
   type RunClient,
   type RunView,
 } from "@/lib/contracts";
@@ -28,6 +29,9 @@ type PulseCheckAppProps = {
   runClient?: RunClient | null;
   restoreRunId?: string | null;
   onRunIdChange?: (runId: string | null) => void;
+  recentRuns?: RecentRun[];
+  onSelectRun?: (runId: string) => void;
+  onRunCompleted?: () => void;
   startupError?: string | null;
 };
 
@@ -154,6 +158,9 @@ export function PulseCheckApp({
   runClient: providedRunClient,
   restoreRunId = null,
   onRunIdChange,
+  recentRuns,
+  onSelectRun,
+  onRunCompleted,
   startupError = null,
 }: PulseCheckAppProps) {
   const [article, setArticle] = useState("");
@@ -227,6 +234,7 @@ export function PulseCheckApp({
         setSelectedFindingId(firstReviewFindingId(restored.findings));
         setAnalysisProgress(100);
         setStatus("completed");
+        onRunCompleted?.();
       } catch (caught) {
         if (cancelled) return;
         setError(getRestoreErrorMessage(caught));
@@ -239,7 +247,7 @@ export function PulseCheckApp({
     return () => {
       cancelled = true;
     };
-  }, [restoreRunId, runClient, usesDurableBackend]);
+  }, [onRunCompleted, restoreRunId, runClient, usesDurableBackend]);
 
   function handleArticleChange(nextArticle: string) {
     setArticle(nextArticle);
@@ -317,6 +325,7 @@ export function PulseCheckApp({
       setActiveFilter("all");
       setAnalysisProgress(100);
       setStatus("completed");
+      onRunCompleted?.();
     } catch (caught) {
       setError(getErrorMessage(caught));
       setAnalysisProgress(0);
@@ -416,7 +425,11 @@ export function PulseCheckApp({
   }
 
   return (
-    <ProductShell>
+    <ProductShell
+      recentRuns={recentRuns}
+      activeRunId={runView?.run.id ?? restoreRunId}
+      onSelectRun={onSelectRun}
+    >
       {isCompleted ? (
         <main className="flex min-h-0 flex-1 flex-col px-5 pt-8 pb-2 sm:px-8">
           <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
@@ -539,8 +552,7 @@ export function PulseCheckApp({
             </div>
 
             <p className="mt-3 text-center text-xs leading-5 text-[#777780]">
-              Current sources, cited edits. Don&apos;t paste sensitive
-              information.
+              Checks are public. Don&apos;t paste sensitive information.
             </p>
 
             {currentStatus === "checking" ? (

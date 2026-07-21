@@ -553,6 +553,7 @@ The entire F-track (F1–F4) and M1–M2 are merged to `main`. **Everything rema
 **Scope notes recorded at merge time:**
 
 - **M2 delivered** the migration (`documents`, `analysis_runs`, `findings`, `sources`, `edit_decisions` with RLS, immutable original text, `SECURITY DEFINER` RPCs), the three Supabase clients, generated types, anonymous auth, the decision endpoint, 15 pgTAP security tests, and a durable Playwright spec. Deviations: repository-adapter classes were replaced by a function-based persistence layer (`lib/supabase/persistence.ts`); **`webhook_events` and quota enforcement deferred to M3**; identity linking deferred; seeds intentionally empty. `pnpm build` runs webpack, not Turbopack, due to an upstream Turbopack + Zod v4 bug (see README).
+- **Hackathon gallery override (July 21, 2026):** invisible anonymous sessions may read all completed documents, runs, findings, and sources through RLS-backed APIs. Creation still requires a valid anonymous bearer token, direct table writes remain blocked, and edit decisions are private per viewer. The UI labels checks as public and must not imply that pasted text is private.
 - **F1** shipped the ChatGPT-native shell and morphing two-state experience, and pulled forward part of F5: `HttpRunClient`, anonymous session bootstrap, and `?run=` restore. Supabase mode is served by `components/durable-pulsecheck-app.tsx`; fake mode by `components/pulsecheck-app.tsx` (`app/page.tsx` branches on `DATA_BACKEND`). `article-composer.tsx` replaced `article-editor.tsx`.
 - **F2** delivered the deterministic engine in `lib/domain/`: `resolve-spans.ts`, `derive-updated-text.ts`, plus render segmentation, with the round-trip invariant enforced.
 - **F3** delivered inline findings + evidence UI: `components/article-view.tsx`, `evidence-panel.tsx`, `finding-dot.tsx`, wired through `durable-pulsecheck-app.tsx`/`pulsecheck-app.tsx`; the decision endpoint persists accept/reject/restore.
@@ -683,7 +684,7 @@ Both developers implement with AI models and review each other's PRs. These rule
 
 ### M2 — Mahmoud: Supabase, anonymous auth, and row isolation
 
-> ✅ **Completed and merged** (PR #11). Verified: migration applies from zero (`pnpm supabase db reset`), 15 pgTAP RLS/security tests pass, and the durable E2E proves refresh-survival plus cross-user isolation through the real app. See the delivery-status scope notes for the recorded deviations (function-based persistence layer instead of repository classes; `webhook_events`, quota, and identity linking deferred; webpack build workaround).
+> ✅ **Completed and merged** (PR #11), then adapted for the shared hackathon gallery described in Delivery status. The current gate rebuilds from zero, passes 27 pgTAP assertions, preserves private per-viewer decisions, and proves refresh plus cross-session history through the real app. The owner-isolation requirements below document the original M2 target; the gallery override supersedes them for read access only.
 
 **Start gate:** M1 is merged. This runs in parallel with F1 and then F2.
 

@@ -27,10 +27,8 @@ export async function GET(request: Request, context: Context) {
       );
     }
 
-    // Reconcile a stuck OpenAI run in case its webhook was missed. The read
-    // above already enforced RLS ownership, so we only ever reconcile the
-    // caller's own run. Transient upstream failures are swallowed so polling
-    // keeps working.
+    // Reconcile a stuck shared OpenAI run in case its webhook was missed.
+    // Transient upstream failures are swallowed so polling keeps working.
     const isPending =
       view.run.status === "queued" || view.run.status === "in_progress";
     if (config.ANALYSIS_PROVIDER === "openai" && isPending) {

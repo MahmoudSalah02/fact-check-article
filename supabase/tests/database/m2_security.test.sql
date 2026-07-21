@@ -43,8 +43,8 @@ select set_config(
   true
 );
 
-select is((select count(*) from public.documents), 0::bigint, 'other user cannot read the document');
-select is((select count(*) from public.analysis_runs), 0::bigint, 'other user cannot read the run');
+select is((select count(*) from public.documents), 1::bigint, 'other user can read the shared document');
+select is((select count(*) from public.analysis_runs), 1::bigint, 'other user can read the shared run');
 select throws_ok(
   $$update public.documents set title = 'tampered'$$,
   '42501',
