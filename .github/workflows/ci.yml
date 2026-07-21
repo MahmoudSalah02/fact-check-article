@@ -32,8 +32,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install browser engines
+        run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: Check formatting
         run: pnpm format:check
@@ -53,5 +53,5 @@ jobs:
       - name: Build production application
         run: pnpm build
 
-      - name: Run Chromium smoke test
+      - name: Run cross-browser smoke tests
         run: pnpm test:e2e
