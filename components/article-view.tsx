@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { FindingDot } from "@/components/finding-dot";
+import { FindingDot, FindingLegend } from "@/components/finding-dot";
 import type { EditDecision, Finding } from "@/lib/contracts";
 import { deriveUpdatedText } from "@/lib/domain/derive-updated-text";
 import { toRenderSegments } from "@/lib/domain/render-segments";
@@ -86,12 +86,12 @@ export function ArticleView({
             </button>
           ))}
         </div>
-        <div className="text-right text-xs leading-5 text-[#8e8ea0]">
-          <p>
-            {visibleFindingIds.size === 0
-              ? "No findings in this category"
-              : "Select a colored dot to inspect evidence"}
-          </p>
+        <div className="max-w-[420px] text-right text-xs leading-5 text-[#8e8ea0]">
+          {visibleFindingIds.size === 0 ? (
+            <p>No findings in this category</p>
+          ) : (
+            <FindingLegend />
+          )}
           <p id="updated-version-status" aria-live="polite">
             {acceptedCount === 0
               ? "Accept a correction to create the Updated version"

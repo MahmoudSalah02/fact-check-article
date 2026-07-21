@@ -19,6 +19,12 @@ test("a run survives refresh and appears in the shared recent gallery", async ({
   await page.reload();
   await expect(page.getByText("9 findings ready to review.")).toBeVisible();
 
+  await page.getByRole("button", { name: "New check" }).click();
+  await page.getByRole("button", { name: "Use demo" }).click();
+  await page.getByRole("button", { name: "Start check" }).click();
+  await expect(page.getByText("9 findings ready to review.")).toBeVisible();
+  await expect(page).toHaveURL(durableUrl);
+
   const isolatedContext = await browser.newContext();
   const isolatedPage = await isolatedContext.newPage();
   await isolatedPage.goto("/");

@@ -6,7 +6,10 @@ test("prepared article travels through the F1 product flow", async ({
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: "What should we verify?" }),
+    page.getByRole("heading", { name: "Make any article current." }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/verify claims, update what changed/i),
   ).toBeVisible();
   await expect(page.getByText("Codex")).toBeVisible();
   const sidebar = page.getByRole("complementary", {

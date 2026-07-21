@@ -16,6 +16,7 @@ import {
   completeDurableRun,
   createDurableRun,
   failDurableRun,
+  findReusableCompletedRun,
   listRecentDurableRuns,
   markRunInProgress,
   PersistenceUnavailableError,
@@ -66,6 +67,13 @@ export async function POST(request: Request) {
     // The prepared demo runs on the deterministic fixture in every mode, so the
     // canned pitch demo stays free and stable even when OpenAI is enabled.
     if (isDemo) {
+      const adminClient = createAdminSupabaseClient();
+      const reusableRun = await findReusableCompletedRun(
+        adminClient,
+        demoArticle,
+      );
+      if (reusableRun) return NextResponse.json(reusableRun);
+
       const provider = new FixtureAnalysisProvider(demoArticle, demoExpected);
       const created = await createDurableRun(client, input, provider.checkedAt);
       runId = created.result.runId;
@@ -81,7 +89,7 @@ export async function POST(request: Request) {
         output.findings,
       ).map((finding) => ({ ...finding, id: crypto.randomUUID() }));
       await completeDurableRun(
-        createAdminSupabaseClient(),
+        adminClient,
         runId,
         submission.providerRunId,
         findings,

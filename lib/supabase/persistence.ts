@@ -10,6 +10,7 @@ import {
   GetRunResultSchema,
   ListRecentRunsResultSchema,
   type CreateRunInput,
+  type CreateRunResult,
   type Finding,
   type GetRunResult,
   type ListRecentRunsResult,
@@ -71,6 +72,44 @@ export async function listRecentDurableRuns(
         : [];
     }),
   });
+}
+
+export async function findReusableCompletedRun(
+  client: UserClient,
+  originalText: string,
+): Promise<CreateRunResult | null> {
+  const { data: documents, error: documentsError } = await client
+    .from("documents")
+    .select("id")
+    .eq("original_text", originalText)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (documentsError) {
+    throw new PersistenceUnavailableError("Unable to find reusable run");
+  }
+  if (documents.length === 0) return null;
+
+  const { data: run, error: runError } = await client
+    .from("analysis_runs")
+    .select("id, status, created_at")
+    .in(
+      "document_id",
+      documents.map(({ id }) => id),
+    )
+    .eq("status", "completed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (runError) {
+    throw new PersistenceUnavailableError("Unable to find reusable run");
+  }
+  return run
+    ? CreateRunResultSchema.parse({
+        runId: run.id,
+        status: run.status,
+        createdAt: toIsoUtc(run.created_at),
+      })
+    : null;
 }
 
 export async function createDurableRun(

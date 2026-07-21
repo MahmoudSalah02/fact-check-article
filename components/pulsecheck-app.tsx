@@ -35,7 +35,8 @@ type PulseCheckAppProps = {
   startupError?: string | null;
 };
 
-type AppStatus = "empty" | "ready" | "checking" | "completed" | "error";
+type AppStatus =
+  "empty" | "ready" | "checking" | "restoring" | "completed" | "error";
 type FindingFilter = "all" | Finding["claimType"];
 
 const FINDING_FILTERS: Array<{ id: FindingFilter; label: string }> = [
@@ -44,6 +45,48 @@ const FINDING_FILTERS: Array<{ id: FindingFilter; label: string }> = [
   { id: "forecast", label: "Forecasts" },
   { id: "opinion", label: "Opinions" },
 ];
+
+const CAPABILITIES = [
+  "Fact-check claims",
+  "Refresh old facts",
+  "Validate forecasts",
+] as const;
+
+function ViewerLoading() {
+  return (
+    <main className="flex min-h-0 flex-1 flex-col px-5 pt-8 pb-2 sm:px-8">
+      <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
+        <div>
+          <h1 className="text-[22px] font-semibold tracking-tight text-[#f3f3f3]">
+            PulseCheck
+          </h1>
+          <p role="status" className="mt-0.5 text-sm text-[#8e8ea0]">
+            Opening check…
+          </p>
+        </div>
+        <div className="mt-5 flex gap-2" aria-hidden="true">
+          <span className="h-8 w-16 rounded-full bg-white/[0.07]" />
+          <span className="h-8 w-20 rounded-full bg-white/[0.04]" />
+          <span className="h-8 w-24 rounded-full bg-white/[0.04]" />
+        </div>
+        <div className="mt-5 grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="rounded-2xl border border-[#242424] bg-[#151515] p-7">
+            <div className="space-y-4" aria-hidden="true">
+              <div className="h-3 w-2/5 rounded-full bg-white/[0.08]" />
+              <div className="h-3 w-full rounded-full bg-white/[0.06]" />
+              <div className="h-3 w-11/12 rounded-full bg-white/[0.06]" />
+              <div className="h-3 w-4/5 rounded-full bg-white/[0.06]" />
+            </div>
+          </div>
+          <div
+            aria-hidden="true"
+            className="rounded-2xl border border-[#303030] bg-[#212121]"
+          />
+        </div>
+      </div>
+    </main>
+  );
+}
 
 function getErrorMessage(error: unknown) {
   if (
@@ -205,8 +248,7 @@ export function PulseCheckApp({
 
     async function restoreRun() {
       try {
-        setAnalysisProgress(6);
-        setStatus("checking");
+        setStatus("restoring");
         const restored = await pollRunUntilTerminal(
           client,
           runId,
@@ -336,7 +378,9 @@ export function PulseCheckApp({
   const findings = runView?.findings ?? [];
   const currentStatus = startupError ? "error" : status;
   const currentError = startupError ?? error;
-  const isCompleted = currentStatus === "completed" && runView !== null;
+  const showRunView =
+    runView !== null &&
+    (currentStatus === "completed" || currentStatus === "restoring");
   const visibleFindings = findings.filter(
     (finding) => activeFilter === "all" || finding.claimType === activeFilter,
   );
@@ -427,10 +471,14 @@ export function PulseCheckApp({
   return (
     <ProductShell
       recentRuns={recentRuns}
-      activeRunId={runView?.run.id ?? restoreRunId}
+      activeRunId={
+        currentStatus === "restoring"
+          ? restoreRunId
+          : (runView?.run.id ?? restoreRunId)
+      }
       onSelectRun={onSelectRun}
     >
-      {isCompleted ? (
+      {showRunView && runView ? (
         <main className="flex min-h-0 flex-1 flex-col px-5 pt-8 pb-2 sm:px-8">
           <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -532,14 +580,20 @@ export function PulseCheckApp({
             </div>
           </div>
         </main>
+      ) : currentStatus === "restoring" ? (
+        <ViewerLoading />
       ) : (
         <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-5">
           <div className="w-full max-w-[720px] pb-16">
             <h1 className="text-center text-[28px] font-medium tracking-tight text-[#f3f3f3] sm:text-[32px]">
-              What should we verify?
+              Make any article current.
             </h1>
 
-            <div className="mt-8">
+            <p className="mt-2 text-center text-sm text-[#9b9b9b]">
+              Verify claims, update what changed, and cite every edit.
+            </p>
+
+            <div className="mt-6">
               <ArticleComposer
                 article={article}
                 isChecking={currentStatus === "checking"}
@@ -550,6 +604,21 @@ export function PulseCheckApp({
                 onReset={handleReset}
               />
             </div>
+
+            <ul
+              aria-label="PulseCheck capabilities"
+              className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-[#8e8ea0]"
+            >
+              {CAPABILITIES.map((capability) => (
+                <li key={capability} className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="h-1 w-1 rounded-full bg-[#b4b4b4]"
+                  />
+                  {capability}
+                </li>
+              ))}
+            </ul>
 
             <p className="mt-3 text-center text-xs leading-5 text-[#777780]">
               Checks are public. Don&apos;t paste sensitive information.

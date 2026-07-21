@@ -136,13 +136,13 @@ export function ProductShell({
               const isActive = run.id !== null && run.id === activeRunId;
               const content = (
                 <>
-                  <span className="text-[#777780]">
+                  <span className="scale-90 text-[#777780]">
                     <Icon path={ICON_PATHS.history} />
                   </span>
                   <span className="truncate">{run.title}</span>
                 </>
               );
-              const className = `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm outline-none transition-colors duration-200 hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-white/40 ${
+              const className = `flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] leading-5 outline-none transition-colors duration-200 hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-white/40 ${
                 isActive || index === 0 ? "text-[#e7e7e7]" : "text-[#b4b4b4]"
               } ${isActive ? "bg-white/[0.06]" : ""}`;
 

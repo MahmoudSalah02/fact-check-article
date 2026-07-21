@@ -53,6 +53,33 @@ export function getVerdictTextClass(verdict: Verdict) {
   return VERDICT_META[verdict].textClass;
 }
 
+const LEGEND_ITEMS = [
+  { label: "Verified", dotClass: "bg-emerald-400" },
+  { label: "Outdated", dotClass: "bg-sky-400" },
+  { label: "Contradicted", dotClass: "bg-red-400" },
+  { label: "Needs evidence", dotClass: "bg-amber-300" },
+  { label: "Opinion", dotClass: "bg-zinc-400" },
+] as const;
+
+export function FindingLegend() {
+  return (
+    <ul
+      aria-label="Finding legend"
+      className="flex flex-wrap justify-end gap-x-3 gap-y-1 text-[11px] text-[#8e8ea0]"
+    >
+      {LEGEND_ITEMS.map((item) => (
+        <li key={item.label} className="flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className={`h-1.5 w-1.5 rounded-full ${item.dotClass}`}
+          />
+          {item.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 type FindingDotProps = {
   finding: Finding;
   selected: boolean;

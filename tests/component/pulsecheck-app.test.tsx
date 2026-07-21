@@ -72,8 +72,14 @@ describe("F1 PulseCheck experience", () => {
     expect(screen.getByText("ChatGPT")).toBeVisible();
     expect(screen.getByText("Codex")).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "What should we verify?" }),
+      screen.getByRole("heading", { name: "Make any article current." }),
     ).toBeVisible();
+    expect(
+      screen.getByText(/verify claims, update what changed/i),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("list", { name: "PulseCheck capabilities" }),
+    ).toHaveTextContent("Fact-check claimsRefresh old factsValidate forecasts");
     expect(
       screen.getByText("Concept prototype; not an official OpenAI product."),
     ).toBeVisible();
@@ -111,6 +117,32 @@ describe("F1 PulseCheck experience", () => {
       screen.getByRole("button", { name: "A shared energy forecast" }),
     );
     expect(onSelectRun).toHaveBeenCalledWith(runId);
+  });
+
+  it("opens history directly into the viewer shell", async () => {
+    const pendingRun =
+      createDeferred<Awaited<ReturnType<RunClient["getRun"]>>>();
+    const runClient: RunClient = {
+      createRun: async () => {
+        throw new Error("History restore must not create a run");
+      },
+      getRun: () => pendingRun.promise,
+    };
+
+    render(
+      <PulseCheckApp
+        demoArticle={demoArticle}
+        demoExpected={demoExpected}
+        runClient={runClient}
+        restoreRunId={crypto.randomUUID()}
+      />,
+    );
+
+    expect(await screen.findByText("Opening check…")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "PulseCheck" })).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Make any article current." }),
+    ).not.toBeInTheDocument();
   });
 
   it("enters the ready state with a character count as the user types", async () => {
@@ -245,6 +277,9 @@ describe("F1 PulseCheck experience", () => {
     expect(
       screen.getByRole("complementary", { name: "Evidence panel" }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("list", { name: "Finding legend" }),
+    ).toHaveTextContent("VerifiedOutdatedContradictedNeeds evidenceOpinion");
 
     expect(
       screen.getByRole("region", { name: "Checked article" }),
@@ -272,7 +307,7 @@ describe("F1 PulseCheck experience", () => {
     await user.click(screen.getByRole("button", { name: "Clear article" }));
 
     expect(
-      screen.getByRole("heading", { name: "What should we verify?" }),
+      screen.getByRole("heading", { name: "Make any article current." }),
     ).toBeVisible();
     expect(screen.getByRole("textbox", { name: "Article text" })).toHaveValue(
       "",
