@@ -535,21 +535,30 @@ Keep tests organized by behavior rather than mirroring every source file. Small 
 
 ## 10. Two-developer delivery roadmap
 
-### Delivery status — updated July 19, 2026
+### Delivery status — updated July 20, 2026
+
+The entire F-track (F1–F4) and M1–M2 are merged to `main`. **Everything remaining is Mahmoud's: M3 → then M4 and F5 in parallel → then M5.** F5 was reassigned from Fadi to Mahmoud.
 
 | Ticket | Status | Where |
 | --- | --- | --- |
-| M1 — skeleton, contracts, fakes, CI | ✅ Merged | PR #1 → `main` |
-| M2 — Supabase, anonymous auth, RLS | ✅ Merged | PR #11 → `main` (squash) |
-| F1 — product shell and article input | ✅ Code-complete, CI green | PR #12 (`f1-skeleton`), awaiting review/merge |
-| F2 — exact-span edit engine | 🔜 **Fadi starts next**, branch from `main` after PR #12 merges | — |
-| M3 — run API and OpenAI lifecycle | 🔜 Mahmoud starts next (gate M2 ✓) | — |
-| F3, F4, M4, F5, M5 | Pending, order unchanged | — |
+| M1 — skeleton, contracts, fakes, CI | ✅ Merged | PR #1 |
+| M2 — Supabase, anonymous auth, RLS | ✅ Merged | PR #11 |
+| F1 — product shell and article input | ✅ Merged | PR #12, #13 |
+| F2 — exact-span edit engine | ✅ Merged | PR #14 |
+| F3 — inline findings and evidence | ✅ Merged | PR #15 |
+| F4 — fact-checking logic and evals | ✅ Merged | PR #16, sidebar fix #17 |
+| **M3 — run API and OpenAI lifecycle** | 🔜 **Do next** (gate M2 ✓) | — |
+| **M4 — production, security, observability** | ⏳ After M3 | — |
+| **F5 — real integration and judge journey** | ⏳ After M3 (F3 ✓, F4 ✓); **now Mahmoud** | — |
+| **M5 — reliability gate and release** | ⏳ After F5 + M4 | — |
 
 **Scope notes recorded at merge time:**
 
-- **M2 delivered** the migration (`documents`, `analysis_runs`, `findings`, `sources`, `edit_decisions` with RLS, immutable original text, `SECURITY DEFINER` RPCs), the three Supabase clients, generated types, anonymous auth, the decision endpoint, 15 pgTAP security tests, and a durable Playwright spec. Deviations from the plan below: the repository-adapter classes were replaced by a function-based persistence layer (`lib/supabase/persistence.ts`) — the pgTAP suite plus the durable E2E cover what the "repository contract suite against Supabase" would have; `webhook_events` and quota enforcement moved to M3; identity linking (anonymous → email) is deferred and not demo-blocking; seeds are intentionally empty (the fixture enters through the authenticated HTTP path). `pnpm build` runs webpack, not Turbopack, due to an upstream Turbopack + Zod v4 bug (see README).
-- **F1 grew beyond its original scope.** It shipped the ChatGPT-native shell and a morphing two-state experience (composer home → findings feature page), and it already integrates the M2 durable backend: `HttpRunClient`, anonymous session bootstrap, and `?run=` restore after refresh (work originally sequenced in F5). The component landscape changed: `article-editor.tsx` was replaced by `article-composer.tsx`, `pulsecheck-app.tsx` owns the state machine and both layouts, and `findings-preview.tsx` renders a provisional findings list that F3 replaces.
+- **M2 delivered** the migration (`documents`, `analysis_runs`, `findings`, `sources`, `edit_decisions` with RLS, immutable original text, `SECURITY DEFINER` RPCs), the three Supabase clients, generated types, anonymous auth, the decision endpoint, 15 pgTAP security tests, and a durable Playwright spec. Deviations: repository-adapter classes were replaced by a function-based persistence layer (`lib/supabase/persistence.ts`); **`webhook_events` and quota enforcement deferred to M3**; identity linking deferred; seeds intentionally empty. `pnpm build` runs webpack, not Turbopack, due to an upstream Turbopack + Zod v4 bug (see README).
+- **F1** shipped the ChatGPT-native shell and morphing two-state experience, and pulled forward part of F5: `HttpRunClient`, anonymous session bootstrap, and `?run=` restore. Supabase mode is served by `components/durable-pulsecheck-app.tsx`; fake mode by `components/pulsecheck-app.tsx` (`app/page.tsx` branches on `DATA_BACKEND`). `article-composer.tsx` replaced `article-editor.tsx`.
+- **F2** delivered the deterministic engine in `lib/domain/`: `resolve-spans.ts`, `derive-updated-text.ts`, plus render segmentation, with the round-trip invariant enforced.
+- **F3** delivered inline findings + evidence UI: `components/article-view.tsx`, `evidence-panel.tsx`, `finding-dot.tsx`, wired through `durable-pulsecheck-app.tsx`/`pulsecheck-app.tsx`; the decision endpoint persists accept/reject/restore.
+- **F4** delivered the analysis logic without live OpenAI: `lib/analysis/prompt.ts` (claim-extraction/research instructions), `validate-output.ts` (`parseAndValidateAnalysisOutput` + evidence cross-checking), `recorded-provider.ts`, and `evaluation.ts` with recorded eval cases. **M3 reuses `parseAndValidateAnalysisOutput` — do not re-implement output validation.**
 
 ### Before M1 starts: 15-minute preflight
 
@@ -758,9 +767,25 @@ Both developers implement with AI models and review each other's PRs. These rule
 
 ### M3 — Mahmoud: run API and durable OpenAI lifecycle
 
-**Start gate:** M2 is merged. Shared contracts from M1 remain unchanged unless both developers approve a revision.
+**Start gate:** M2 is merged (✓). This is the next ticket to start. Shared contracts from M1 remain unchanged unless both developers approve a revision.
 
-**Preconditions:** M2 merged ✓ (this can start now, in parallel with F2); OpenAI project verified for Responses, web search, background mode, and webhooks; keys stay server-side. Inherited M2 placeholders this ticket must replace: `POST /api/runs` currently accepts only the prepared demo article (422 otherwise) and completes synchronously with fixture findings — M3 makes it a real `queued → in_progress → completed|failed` lifecycle; the `webhook_events` table and quota RPC deferred from M2 land here.
+**Preconditions (verify before writing code):**
+
+- [ ] Branch from the latest `main`; `pnpm install --frozen-lockfile` then the full local gate passes untouched.
+- [ ] Confirm the OpenAI project can call the configured model with Responses, web search, background mode, and webhooks; `OPENAI_API_KEY`, `OPENAI_WEBHOOK_SECRET`, `OPENAI_MODEL` exist as placeholders in `.env.example` and stay server-side.
+- [ ] You have read the current seams this ticket replaces: `lib/server/openai/transport.ts` (the `OpenAITransport` interface — `start`/`retrieve` only, no SDK yet), `app/api/webhooks/openai/route.ts` (501 stub, `runtime = "nodejs"` already set), `app/api/runs/route.ts` (today: fixture-only, rejects non-demo text with 422, completes synchronously), and `app/api/runs/[id]/route.ts` (today: read-only, no cache headers or reconciliation).
+- [ ] You have read F4's `lib/analysis/validate-output.ts` and will reuse `parseAndValidateAnalysisOutput` for structured-output + evidence validation rather than re-implementing it.
+
+**Deliverables by file (M-track ownership: `app/api/`, `lib/server/`, `lib/analysis/` provider wiring, `lib/supabase/`, `supabase/`; do not touch `components/` or `lib/domain/`):**
+
+| File | What to build |
+| --- | --- |
+| `supabase/migrations/<new>.sql` | Add `webhook_events` (unique OpenAI event ID for idempotency) and the per-user daily quota table/RPC deferred from M2. Regenerate `lib/supabase/database.types.ts`. Add pgTAP coverage. |
+| `lib/server/openai/transport.ts` | Implement `OpenAITransport` with the official SDK: `start` submits a background Response (`store: false`) and returns its id; `retrieve` fetches the completed Response. SDK types must not cross this boundary. |
+| `lib/analysis/openai-provider.ts` (new) | Implement `AnalysisProvider` over `OpenAITransport`, parsing results through `parseAndValidateAnalysisOutput`. Selected by `ANALYSIS_PROVIDER=openai`; `fixture`/recorded stay the default. |
+| `app/api/runs/route.ts` | Replace the fixture-only demo gate with the real lifecycle: verify token, enforce the 20,000-char limit, atomically enforce quota + create the run (`queued`), submit the background Response, mark `failed` if submission fails. Do **not** complete synchronously. |
+| `app/api/runs/[id]/route.ts` | Add `Cache-Control: private, no-store` and stale-run reconciliation (a GET on a stuck run reconciles against OpenAI). Keep RLS ownership checks. |
+| `app/api/webhooks/openai/route.ts` | Read `request.text()`, `webhooks.unwrap(...)` with the signing secret, dedupe on `webhook_events`, retrieve + validate + resolve spans, and call the transactional completion RPC. Duplicates are no-ops. |
 
 **Implement:**
 
@@ -779,9 +804,16 @@ Both developers implement with AI models and review each other's PRs. These rule
 - State-machine tests for success, submission failure, model failure, invalid structured output, uncited sources, ambiguous spans, duplicate webhooks, and missed-webhook reconciliation.
 - Transaction rollback test proving partial findings are never displayed.
 
-**Postconditions:** fixture mode remains the CI default and the fake path stays zero-config; the M2 pgTAP suite and durable E2E still pass; duplicate webhooks and repeated GETs are provably idempotent; a run whose submission fails is marked `failed` with a safe error code and never leaks partial findings; `rg "TODO\(M3\)"` is empty and the full local gate passes.
+**Postconditions (done means every box is true):**
 
-**Merge gate:** Routes pass against fake OpenAI in CI, one opt-in Preview run succeeds with real OpenAI, webhook signatures and idempotency are verified, and Fadi can retrieve the result using only `RunClient`.
+- [ ] With `ANALYSIS_PROVIDER=fixture` (CI default) the fake path stays zero-config and the existing F1–F4 suites, M2 pgTAP, and durable E2E all still pass — no network in CI.
+- [ ] A real run walks `queued → in_progress → completed`; a submission failure or any non-success OpenAI terminal status becomes `failed` with a safe error code and never leaks partial findings (transactional completion).
+- [ ] Duplicate webhook deliveries and repeated GET reconciliations are provably idempotent (covered by tests using `webhook_events`).
+- [ ] The webhook verifies the OpenAI signature; unsigned/invalid bodies are rejected.
+- [ ] `GET /api/runs/:id` returns `Cache-Control: private, no-store` and stays owner-scoped under RLS.
+- [ ] `rg "TODO\(M3\)"` is empty; no diff under `components/` or `lib/domain/`; the full local gate passes.
+
+**Merge gate:** Routes pass against the fixture/recorded provider in CI, one opt-in Preview run succeeds with real OpenAI, webhook signatures and idempotency are verified, and the UI can retrieve a completed run using only `RunClient`.
 
 **Unlocks:** M4 and the backend half of F5.
 
@@ -873,6 +905,23 @@ Both developers implement with AI models and review each other's PRs. These rule
 
 **Start gate:** M3 is merged. This keeps Mahmoud to one personal implementation branch and lets hardening observe the real run lifecycle.
 
+**Preconditions (verify before writing code):**
+
+- [ ] M3 is merged (real run lifecycle + quota table exist to harden). Branch from the latest `main`; full local gate passes untouched.
+- [ ] A separate **production** Supabase project exists (distinct from the non-production one M2 used); Vercel Preview/Production env scopes are ready to receive server-only secrets.
+- [ ] The launch policy numbers are decided: daily run quota, anonymous-data retention window, max OpenAI spend.
+- [ ] The one code stub this ticket owns is confirmed: `app/api/documents/[id]/route.ts` (`DELETE`, currently 501 `TODO(M4)`). Everything else is config/deploy/observability.
+
+**Deliverables by area (M-track ownership only):**
+
+| Area | What to build |
+| --- | --- |
+| `app/api/documents/[id]/route.ts` | Implement owner-scoped `DELETE`: cascade-delete the document and its runs/findings/sources/decisions; never touch another user's rows. |
+| Retention | Delete or anonymize data past the retention window (scheduled task or RPC), reusing M3's quota/admin plumbing. |
+| Env + deploy | Wire Preview→non-prod and Production→prod Supabase; server-only secrets; migration delivery on deploy; document deploy/rollback/secret-rotation/DB-recovery in the README or `docs/`. |
+| Security | Security headers and safe external-link behavior (`next.config.ts` / route headers); Vercel WAF limits; DB-backed per-user quota enforcement (from M3's table). |
+| Observability | Sentry + structured logs (IDs, status, duration, token/tool usage, error codes) that **never** contain article text or secrets; alerts for failed webhooks, stuck runs, error-rate spikes, spend anomalies. |
+
 **Implement:**
 
 - Connect Vercel Preview and Production to separate non-production and production Supabase projects; do not add a paid custom staging environment.
@@ -889,19 +938,31 @@ Both developers implement with AI models and review each other's PRs. These rule
 - Preview smoke test after migrations and deploy.
 - Alert test or documented alert simulation for a stuck run.
 
-**Postconditions:** separate non-production and production Supabase projects are wired to Preview and Production; no secret or article text appears in any log or client bundle; quotas and deletion verified against a deployed environment, not just locally; `rg "TODO\(M4\)"` is empty.
+**Postconditions:** separate non-production and production Supabase projects are wired to Preview and Production; owner-scoped document deletion cascades correctly and cannot target another user's rows; no secret or article text appears in any log or client bundle; quotas and deletion verified against a deployed environment, not just locally; `rg "TODO\(M4\)"` is empty and the full local gate passes.
 
 **Merge gate:** A preview deployment passes smoke tests, secrets remain server-only, logs are clean, quotas and deletion work, and rollback instructions have been dry-run where safe.
 
 **Unlocks:** M5 after F5 is also merged. It does not block F5's Preview integration work.
 
-### F5 — Fadi: real integration and complete judge journey
+### F5 — Mahmoud: real integration and complete judge journey
 
-> **Partially pulled forward into F1 (July 19, 2026):** the UI already uses `HttpRunClient` in supabase mode, bootstraps an anonymous session, and restores a completed run from `?run=` after refresh. What remains for F5 is the real-API half: polling an in-progress M3 run with visibility-aware backoff, the quota/validation/research-failure/timeout error taxonomy in plain language, and the full Preview judge journey.
+> **Owner reassigned to Mahmoud (July 20, 2026).** Even though this touches `components/`, Mahmoud carries it because it is tightly coupled to the M3 run lifecycle he builds; treat the normal F-track ownership boundary as waived for this ticket only.
+>
+> **Most of F5 already shipped inside F1/F3.** The supabase-mode UI (`components/durable-pulsecheck-app.tsx`) already uses `HttpRunClient`, bootstraps an anonymous session, restores a completed run from `?run=`, and renders findings + evidence (F3). What remains is only the **async-run** half that M3 introduces: today the M2 `POST /api/runs` completes synchronously, so the UI never had to poll. Once M3 makes runs asynchronous (`queued → in_progress → completed|failed`), the UI must poll and handle the in-between and failure states.
 
-**Start gate:** M3, F3, and F4 are merged. M4 may continue in parallel because F5 needs the real Preview API, not completed production hardening.
+**Start gate:** M3 is merged (F3 ✓, F4 ✓). M4 may run in parallel because F5 needs the real Preview API, not completed production hardening.
 
-**Preconditions:** M3, F3, F4 merged; a Preview deployment with supabase mode configured exists; you can create one real run against Preview (coordinate the opt-in OpenAI budget with Mahmoud before looping tests against it).
+**Preconditions (verify before writing code):**
+
+- [ ] M3 is merged, so `POST /api/runs` returns a `queued`/`in_progress` run instead of a synchronous `completed` one. Branch from the latest `main`; full local gate passes untouched.
+- [ ] A Preview deployment in supabase mode exists and you can create one real run against it. Coordinate the opt-in OpenAI budget before looping tests against Preview.
+- [ ] You have read `components/durable-pulsecheck-app.tsx` (the integration point — it currently assumes synchronous completion) and `lib/client/http-run-client.ts`.
+
+**Focus for this ticket (the delta M3 creates):**
+
+- In `durable-pulsecheck-app.tsx`, after `createRun`, poll `getRun` with visibility-aware backoff until the run reaches a terminal state; keep the article stable and show the checking/shimmer state while `in_progress`. No Realtime in v1.
+- Map `failed` runs and quota/validation/research-failure/timeout responses to distinct plain-language messages.
+- Confirm the completed-run render (findings, evidence, accept/reject, original↔updated) still works end-to-end against a real M3 run — this is F3's UI, now fed by real data.
 
 **Implement:**
 
@@ -913,7 +974,7 @@ Both developers implement with AI models and review each other's PRs. These rule
 - Keep fake mode available for deterministic demos and local development.
 - Remove all `TODO(F5)` comments.
 
-**Tests Fadi writes:**
+**Tests:**
 
 - Playwright happy path against Preview: anonymous visit → paste → run → refresh → inspect evidence → accept/reject → compare original.
 - Playwright recovery cases for polling fallback and terminal error display.
@@ -927,7 +988,13 @@ Both developers implement with AI models and review each other's PRs. These rule
 
 ### M5 — Mahmoud: reliability gate and release
 
-**Start gate:** F5 and every previous ticket are merged.
+**Start gate:** F5 and M4 (and every previous ticket) are merged.
+
+**Preconditions (verify before starting):**
+
+- [ ] F5 and M4 are both on `main`; branch from the latest `main`.
+- [ ] Real (non-fixture) mode works end-to-end on Preview, and Production env + secrets are configured (from M4).
+- [ ] `rg "TODO\(M1\)|TODO\(M2\)|TODO\(M3\)|TODO\(M4\)|TODO\(F1\)|TODO\(F2\)|TODO\(F3\)|TODO\(F4\)|TODO\(F5\)"` shows only anything you will resolve in this ticket.
 
 **Implement and verify:**
 
@@ -943,6 +1010,8 @@ Both developers implement with AI models and review each other's PRs. These rule
 **Merge/release gate:** CI and production smoke tests pass, no release-blocking TODO remains, the demo has a fallback fixture mode, and both developers sign off on the exact pitch flow.
 
 ### Exact start and merge order
+
+> **Where we are (July 20, 2026):** steps 1–8 below are complete — M1, M2, F1, F2, F3, F4 are all merged. The remaining sequence, all Mahmoud: **M3 next → then M4 and F5 in parallel → then M5 once both land.** F5 is now Mahmoud's (see its section). The historical steps are kept below for reference.
 
 This is the recommended human work sequence. It keeps one active implementation branch per developer and makes every dependency explicit.
 
